@@ -27,3 +27,6 @@ export const fecha = (valor: string | null | undefined) => {
 export const fechaCorta = (valor: string) => fecha(valor).slice(0, 5)
 
 export const antiguedad = (dias: number) => (dias <= 0 ? 'hoy' : dias === 1 ? 'hace 1 día' : `hace ${numero(dias)} días`)
+
+// Decimales solo si el valor los tiene (fórmulas y umbrales: 17 → "17", 14.62 → "14.62").
+export const decimal = (n: number | null | undefined) => (n == null ? '—' : numero(n, Number.isInteger(n) ? 0 : 2))

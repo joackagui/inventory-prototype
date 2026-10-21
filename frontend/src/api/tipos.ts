@@ -55,6 +55,7 @@ export interface ResumenTablero {
 export interface Alerta {
   id: number
   codigo: string
+  nombre?: string
   color: ColorAlerta
   estado: 'ABIERTA' | 'ATENDIDA' | 'RESUELTA'
   situacion: string
@@ -91,4 +92,137 @@ export interface CambioFecha {
   fechaSimulada: string
   fechaAnterior: string | null
   alertas: { creadas: number; cambiosColor: number; resueltas: number; escaladas: number; abiertas: number } | null
+}
+
+export interface Medicion {
+  etiqueta: string
+  valor: number
+  unidad: string
+  amarillo: number | null
+  rojo: number
+  menorEsPeor: boolean
+  nivelBajoEsAzul?: boolean
+}
+
+export interface AlertaDetalle extends Alerta {
+  nombre: string
+  referenciaTipo: string
+  referenciaId: number | null
+  datos: Record<string, unknown>
+  medicion: Medicion | null
+  fechaOperacion: string
+  fechaColor: string
+  fechaAtencion: string | null
+  resultado: string | null
+  comentario: string | null
+  fechaResolucion: string | null
+  atendidaPor: { codigo: string } | null
+  historial: { id: number; tipo: 'CREADA' | 'CAMBIO_COLOR' | 'ATENDIDA' | 'ESCALADA' | 'RESUELTA'; colorAnterior: ColorAlerta | null; colorNuevo: ColorAlerta | null; nivel: number | null; detalle: string | null; fechaOperacion: string; usuario: { codigo: string } | null }[]
+}
+
+export interface ParametrosArticulo {
+  demandaDiaria: number
+  desviacionDemanda: number
+  leadTimeDias: number
+  claseAbc: 'A' | 'B' | 'C'
+  nivelServicio: number
+  z: number
+  diasRevision: number
+  stockSeguridad: number
+  rop: number
+  loteTraslado: number
+  stockMaximo: number
+  ultimoConteo?: string | null
+}
+
+export interface ResumenAlmacenArticulo {
+  almacen: string
+  nombre: string
+  disponible: number
+  vendible: number
+  estado?: 'DISPONIBLE' | 'AGOTADO'
+  reservado?: number
+  cuarentena?: number
+  enTransito?: number
+  posicion?: number
+  coberturaDias?: number
+  vidaRestanteDias?: number | null
+  trasladoPropuesto?: number
+  parametros?: ParametrosArticulo
+  costoFifoMasAntigua?: number | null
+  costoUltimaCapa?: number | null
+  funcion?: { seguridad: number; ciclo: number; transito: number; estacional: number; fiesta: { nombre: string; fechaInicio: string; factor: number; ropFiesta: number } | null }
+  color?: ColorSemaforo
+  alertas?: { id: number; codigo: string; color: ColorAlerta; mensaje: string; estado: string }[]
+}
+
+export interface ResumenArticulo {
+  articulo: { codigo: string; descripcion: string; familia: string; unidad: string; esRetornable: boolean; precio?: number; vidaUtilDias?: number; costoFifoInicial?: number }
+  fechaOperacion: string
+  almacenes: ResumenAlmacenArticulo[]
+}
+
+export interface Capa {
+  id: number
+  lote: string
+  almacen: { codigo: string; tipo: string }
+  ubicacion: { codigo: string }
+  fechaEntrada: string
+  fechaElaboracion: string
+  fechaVencimiento: string
+  cantidadInicial: number
+  cantidadRestante: number
+  costoUnitario: number
+  estado: 'DISPONIBLE' | 'CUARENTENA' | 'AGOTADA'
+  vidaRestanteDias: number
+  valor: number
+  despachable: boolean
+  proximaEnSalir: boolean
+  motivoNoDespachable: string | null
+}
+
+export interface FilaKardex {
+  id: number
+  fechaOperacion: string
+  tipo: string
+  fisico: boolean
+  motivo: string
+  ubicacion: string
+  lote: string | null
+  usuario: string
+  cantidad: number
+  costoUnitario: number
+  valor: number
+  saldo: number
+  saldoValor: number
+}
+
+export interface SerieStock {
+  almacen: string
+  stockSeguridad: number
+  rop: number
+  stockMaximo: number
+  puntos: { fecha: string; saldo: number; bajoRop: boolean }[]
+}
+
+export interface FilaArticulo {
+  codigo: string
+  descripcion: string
+  familia: string
+  unidad?: string
+  claseAbc?: 'A' | 'B' | 'C'
+  precio?: number
+  vidaUtilDias?: number
+  esRetornable?: boolean
+  vendibleTotal?: number
+  coberturaMinimaDias?: number
+  alertasVigentes?: number
+  almacenes: { almacen: string; estado?: 'DISPONIBLE' | 'AGOTADO'; color?: ColorSemaforo; vendible?: number; coberturaDias?: number; alertas?: string[] }[]
+}
+
+export interface UmbralDetalle {
+  clave: string
+  nombre: string
+  valor: Record<string, number | Record<string, number>>
+  porDefecto: Record<string, number | Record<string, number>>
 }
