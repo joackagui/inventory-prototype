@@ -65,6 +65,7 @@ export class PedidosService {
           clienteId: cliente.id,
           almacenId: almacen.id,
           estado,
+          conFaltante: faltantes.length > 0,
           fechaOperacion: fecha,
           usuarioId: u.id,
           lineas: { create: lineas.map((l) => ({ articuloId: l.articulo.id, cantidad: l.cantidad, bonificacion: l.bonificacion, promocionId: l.bonificacion ? promociones.get(l.articulo.id) : null })) },

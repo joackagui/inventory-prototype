@@ -4,11 +4,11 @@ import { ErrorNegocio } from '../comun/errores.js';
 import type { Usuario } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-export type CodigoRol = 'R01' | 'R02' | 'R06' | 'R07' | 'R08' | 'R09';
+export type CodigoRol = 'R01' | 'R02' | 'R03' | 'R06' | 'R07' | 'R08' | 'R09';
 export type UsuarioSesion = Usuario;
 
 // Roles que pueden consultar con costos (todos menos el preventista).
-export const LECTURA: CodigoRol[] = ['R02', 'R06', 'R07', 'R08', 'R09'];
+export const LECTURA: CodigoRol[] = ['R02', 'R03', 'R06', 'R07', 'R08', 'R09'];
 export const TODOS: CodigoRol[] = ['R01', ...LECTURA];
 // Registran operaciones de almacén: R06 en su almacén, R07 en los tres.
 export const OPERAN: CodigoRol[] = ['R06', 'R07'];

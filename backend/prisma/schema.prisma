@@ -320,6 +320,8 @@ model PedidoSimulado {
   estado         EstadoPedido
   fechaOperacion DateTime      @db.Date
   fechaDespacho  DateTime?     @db.Date
+  // Al crearse no alcanzó el stock (costo de agotamiento), aunque luego se cancele.
+  conFaltante    Boolean       @default(false)
   creadoEn       DateTime      @default(now())
   usuarioId      Int
   usuario        Usuario       @relation(fields: [usuarioId], references: [id])

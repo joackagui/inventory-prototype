@@ -103,6 +103,7 @@ const ULTIMO_CONTEO_ESPECIAL: Record<string, string> = {
 const USUARIOS = [
   { codigo: 'PV-014', nombre: 'Preventista', rol: 'R01' },
   { codigo: 'SUP-01', nombre: 'Supervisor de ventas', rol: 'R02' },
+  { codigo: 'AST-01', nombre: 'Asistente de pedidos', rol: 'R03' },
   { codigo: 'ALM-LP', nombre: 'Encargado de almacén La Paz', rol: 'R06', almacen: 'CD-LP-01' },
   { codigo: 'ALM-CB', nombre: 'Encargado de almacén Cochabamba', rol: 'R06', almacen: 'CD-CB-01' },
   { codigo: 'ALM-SC', nombre: 'Encargado de almacén Santa Cruz', rol: 'R06', almacen: 'CD-SC-01' },
@@ -113,6 +114,7 @@ const USUARIOS = [
 const ROLES = [
   { codigo: 'R01', nombre: 'Preventista', descripcion: 'Consulta disponibilidad y crea pedidos simulados (reserva). No ve costos ni alertas.' },
   { codigo: 'R02', nombre: 'Supervisor de ventas', descripcion: 'Propone promociones y consulta envases sin devolver.' },
+  { codigo: 'R03', nombre: 'Asistente de pedidos', descripcion: 'Revisa pedidos pendientes por falta de stock (atiende AL11) y consulta.' },
   { codigo: 'R06', nombre: 'Almacén', descripcion: 'Opera solo su almacén: recibe, despacha, cuenta y registra ajustes (no los aprueba).' },
   { codigo: 'R07', nombre: 'Coordinador de logística', descripcion: 'Los 3 almacenes. Fija parámetros y aprueba traslados, ajustes y mermas.' },
   { codigo: 'R08', nombre: 'Gerencia', descripcion: 'Consulta el tablero y los costos.' },
@@ -546,6 +548,8 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
       { clave: 'costoPorTraslado', valor: 180, descripcion: 'Costo de pedido: USD por traslado' },
       { clave: 'tasaConservacionAnual', valor: 0.15, descripcion: 'Tasa anual de conservación sobre el valor del stock promedio' },
       { clave: 'tasaAgotamiento', valor: 0.015, descripcion: 'Fracción de pedidos no atendidos por falta de stock' },
+      { clave: 'valorPedidoAgotamiento', valor: 40, descripcion: 'Valor promedio de un pedido no atendido (USD)' },
+      { clave: 'margenAgotamiento', valor: 0.3, descripcion: 'Margen perdido por pedido no atendido (costo de agotamiento = valor × margen)' },
       { clave: 'toleranciaConteoPct', valor: 0.5, descripcion: 'Tolerancia de diferencia de conteo (% del saldo)' },
       { clave: 'diasMinimosVidaDespacho', valor: 15, descripcion: 'No se despacha con menos de estos días de vida restante' },
       {
