@@ -66,11 +66,11 @@ export class AnalisisService {
     const desde90 = masDias(fecha, -90);
     const conteos = await this.prisma.conteoFisico.findMany({ where: { almacenId: { in: ids }, fechaOperacion: { gt: desde90, lte: fecha } } });
 
-    // Últimos 30 días hábiles (lunes a viernes) hasta la fecha simulada.
+    // Últimos 30 días hábiles (lunes a viernes) cerrados: hasta el día anterior a la fecha simulada (hoy aún no termina).
     const habiles: Date[] = [];
-    for (let f = fecha; habiles.length < 30; f = masDias(f, -1)) if (f.getUTCDay() % 6 !== 0) habiles.unshift(f);
+    for (let f = masDias(fecha, -1); habiles.length < 30; f = masDias(f, -1)) if (f.getUTCDay() % 6 !== 0) habiles.unshift(f);
     const ventas = await this.prisma.movimiento.findMany({
-      where: { tipo: 'SALIDA', almacenId: { in: ids }, fechaOperacion: { gte: habiles[0], lte: fecha } },
+      where: { tipo: 'SALIDA', almacenId: { in: ids }, fechaOperacion: { gte: habiles[0], lt: fecha } },
       select: { fechaOperacion: true, cantidad: true, articulo: { select: { precio: true } } },
     });
 
