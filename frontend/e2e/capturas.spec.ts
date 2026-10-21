@@ -54,3 +54,37 @@ test('capturas de la ficha del ART-10021 por sección @capturas', async ({ brows
     await contexto.close()
   }
 })
+
+test('capturas de Operaciones y Aprobaciones @capturas', async ({ browser }) => {
+  for (const tema of TEMAS) {
+    const contexto = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const pv = await contexto.newPage()
+    await abrir(pv, '/operaciones?tipo=pedidos&almacen=CD-LP-01', 'PV-014', tema)
+    await pv.getByLabel('Artículo 1').selectOption('ART-10035')
+    await pv.getByLabel('Cantidad 1').fill('30')
+    await pv.getByRole('button', { name: 'Crear pedido y reservar' }).click()
+    await expect(pv.getByTestId('faltantes')).toBeVisible()
+    await pausa(pv)
+    await pv.screenshot({ path: `${CAPTURAS}/operaciones-pedido-faltante-1920x1080-${tema}.png` })
+
+    const log = await contexto.newPage()
+    await abrir(log, '/operaciones?tipo=pedidos', 'LOG-01', tema)
+    await log.locator('[data-pedido]', { hasText: 'CD-LP-01' }).filter({ hasText: 'ART-10021' }).getByRole('button', { name: 'Despachar' }).first().click()
+    await expect(log.getByTestId('capas-consumidas')).toBeVisible()
+    await log.getByTestId('resultado-operacion').scrollIntoViewIfNeeded()
+    await pausa(log)
+    await log.screenshot({ path: `${CAPTURAS}/operaciones-despacho-fifo-1920x1080-${tema}.png` })
+
+    await log.goto('/operaciones?tipo=traslados')
+    await log.getByRole('tab', { name: 'Seguimiento' }).click()
+    await expect(log.getByTestId('seguimiento')).toBeVisible()
+    await pausa(log)
+    await log.screenshot({ path: `${CAPTURAS}/operaciones-traslados-seguimiento-1920x1080-${tema}.png` })
+
+    await log.goto('/aprobaciones')
+    await expect(log.getByTestId('bandeja-ajustes')).toBeVisible()
+    await pausa(log)
+    await log.screenshot({ path: `${CAPTURAS}/aprobaciones-1920x1080-${tema}.png` })
+    await contexto.close()
+  }
+})

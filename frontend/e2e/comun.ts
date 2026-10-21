@@ -7,7 +7,8 @@ export const sembrar = () => execSync('npm --prefix ../backend run db:seed', { s
 // Errores de consola o de página durante la prueba: deben quedar en cero.
 export const errores: string[] = []
 export function vigilar(pagina: Page) {
-  pagina.on('console', (m) => m.type() === 'error' && errores.push(m.text()))
+  // Un 400/403/409 esperado (pedido sin stock, devolver de más) lo registra el navegador como error de red: no es un error de la app.
+  pagina.on('console', (m) => m.type() === 'error' && !/Failed to load resource: the server responded with a status of (400|403|409)/.test(m.text()) && errores.push(m.text()))
   pagina.on('pageerror', (e) => errores.push(e.message))
 }
 

@@ -69,7 +69,7 @@ test('v. PV-014 solo ve la disponibilidad', async ({ page }) => {
   await expect(page.getByTestId('disponibilidad')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Capas FIFO' })).toHaveCount(0)
   await expect(page.getByText(/USD/)).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Crear pedido' })).toHaveAttribute('href', '/operaciones?accion=pedido&articulo=ART-10021')
+  await expect(page.getByRole('link', { name: 'Crear pedido' })).toHaveAttribute('href', '/operaciones?tipo=pedidos&articulo=ART-10021')
 })
 
 test('vi. ART-10063: la capa de 12 días no es despachable y sale la de 25', async ({ page }) => {
