@@ -1,20 +1,43 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@fontsource/inter/latin-400.css'
+import '@fontsource/inter/latin-500.css'
+import '@fontsource/inter/latin-600.css'
+import '@fontsource/inter/latin-700.css'
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter } from 'react-router-dom'
+import { Toaster, toast } from 'sonner'
+import { describirError } from './api/cliente'
+import App from './App'
 import './index.css'
-import App from './App.tsx'
+import { SesionProvider, useSesion } from './sesion/Sesion'
 
-const queryClient = new QueryClient()
+// Errores de la API en un solo lugar, con aviso en español (el id evita avisos repetidos).
+const avisar = (e: unknown) => toast.error(describirError(e), { id: describirError(e) })
+const clienteConsultas: QueryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: avisar }),
+  mutationCache: new MutationCache({
+    onError: avisar,
+    // Cualquier operación puede cambiar stock y alertas: se refrescan todas las consultas.
+    onSuccess: (): Promise<void> => clienteConsultas.invalidateQueries(),
+  }),
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 15_000 } },
+})
+
+function Avisos() {
+  const { tema } = useSesion()
+  return <Toaster richColors closeButton position="bottom-right" theme={tema === 'oscuro' ? 'dark' : 'light'} toastOptions={{ style: { fontSize: '0.95rem' } }} />
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<App />} />
-        </Routes>
-      </BrowserRouter>
+    <QueryClientProvider client={clienteConsultas}>
+      <SesionProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+        <Avisos />
+      </SesionProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
