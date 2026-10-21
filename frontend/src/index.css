@@ -1,1 +1,135 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='oscuro'], [data-theme='oscuro'] *));
+
+/* Tokens de diseño: todos los colores de la app salen de aquí (ver docs/FRONTEND.md). */
+:root {
+  --fondo: #eef2f7;
+  --superficie: #ffffff;
+  --superficie-2: #f5f7fb;
+  --borde: #dbe3ee;
+  --texto: #0f1b2d;
+  --texto-suave: #55657c;
+  --marca: #0b1f3a;
+  --marca-2: #16335f;
+  --marca-texto: #e8eef8;
+  --marca-texto-suave: #9fb2d0;
+  --acento: #2563eb;
+  --acento-suave: #e0e9ff;
+  --verde: #15803d;
+  --verde-fondo: #dcfce7;
+  --amarillo: #a15c07;
+  --amarillo-fondo: #fef3c7;
+  --rojo: #b91c1c;
+  --rojo-fondo: #fee2e2;
+  --azul: #1d4ed8;
+  --azul-fondo: #dbeafe;
+  --rejilla: #e4e9f1;
+  --sombra: 0 1px 2px rgb(15 27 45 / 0.05), 0 6px 16px rgb(15 27 45 / 0.06);
+  color-scheme: light;
+}
+
+[data-theme='oscuro'] {
+  --fondo: #0a111f;
+  --superficie: #111b2e;
+  --superficie-2: #16223a;
+  --borde: #24334f;
+  --texto: #e7eef9;
+  --texto-suave: #98a8c2;
+  --marca: #070f1f;
+  --marca-2: #13284b;
+  --marca-texto: #e8eef8;
+  --marca-texto-suave: #8ea3c4;
+  --acento: #6b9cff;
+  --acento-suave: #1a2c52;
+  --verde: #4ade80;
+  --verde-fondo: rgb(34 197 94 / 0.16);
+  --amarillo: #fbbf24;
+  --amarillo-fondo: rgb(234 179 8 / 0.16);
+  --rojo: #f87171;
+  --rojo-fondo: rgb(239 68 68 / 0.18);
+  --azul: #60a5fa;
+  --azul-fondo: rgb(59 130 246 / 0.18);
+  --rejilla: #22314c;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-borde: var(--borde);
+  --color-texto: var(--texto);
+  --color-suave: var(--texto-suave);
+  --color-marca: var(--marca);
+  --color-marca-2: var(--marca-2);
+  --color-marca-texto: var(--marca-texto);
+  --color-marca-texto-suave: var(--marca-texto-suave);
+  --color-acento: var(--acento);
+  --color-acento-suave: var(--acento-suave);
+  --color-verde: var(--verde);
+  --color-verde-fondo: var(--verde-fondo);
+  --color-amarillo: var(--amarillo);
+  --color-amarillo-fondo: var(--amarillo-fondo);
+  --color-rojo: var(--rojo);
+  --color-rojo-fondo: var(--rojo-fondo);
+  --color-azul: var(--azul);
+  --color-azul-fondo: var(--azul-fondo);
+  --shadow-tarjeta: var(--sombra);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* Cifras tabulares: los números de las tablas y KPIs no "bailan". */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.entrar {
+  animation: entrar 0.35s ease-out both;
+}
+
+@keyframes pulso-rojo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--rojo) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.pulso-rojo {
+  animation: pulso-rojo 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

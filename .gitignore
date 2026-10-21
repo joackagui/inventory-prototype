@@ -12,3 +12,5 @@ pgdata/
 .vscode/
 .idea/
 *.tsbuildinfo
+test-results/
+playwright-report/
