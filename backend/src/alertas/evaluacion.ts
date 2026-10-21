@@ -11,7 +11,7 @@ const dias = (desde: Date, hasta: Date) => Math.round((hasta.getTime() - desde.g
 
 // Alertas de un artículo en un almacén: tras una operación solo se reevalúan las del par afectado.
 // Las demás (ajustes, traslados, envases, pedidos, integración) se reevalúan siempre completas.
-export const CODIGOS_POR_PAR = ['AL01', 'AL02', 'AL03', 'AL04', 'AL05', 'AL06', 'AL13', 'AL14', 'AL15'];
+const CODIGOS_POR_PAR = ['AL01', 'AL02', 'AL03', 'AL04', 'AL05', 'AL06', 'AL13', 'AL14', 'AL15'];
 
 interface Calculada extends ev.Resultado {
   codigo: string;
@@ -21,7 +21,7 @@ interface Calculada extends ev.Resultado {
   referenciaId: number | null;
 }
 
-export const claveAlerta = (c: Pick<Calculada, 'codigo' | 'almacenId' | 'articuloId' | 'referenciaTipo' | 'referenciaId'>) =>
+const claveAlerta = (c: Pick<Calculada, 'codigo' | 'almacenId' | 'articuloId' | 'referenciaTipo' | 'referenciaId'>) =>
   [c.codigo, c.almacenId ?? '-', c.articuloId ?? '-', c.referenciaTipo, c.referenciaId ?? '-'].join('|');
 
 export async function evaluarAlertas(prisma: PrismaClient, alcance: { pares?: Par[] } = {}) {

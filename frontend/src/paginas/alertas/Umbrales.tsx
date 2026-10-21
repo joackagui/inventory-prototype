@@ -41,7 +41,7 @@ const anidar = (p: Plano) =>
   }, {})
 
 // Validación en el navegador (el backend valida igual): números ≥ 0 y el amarillo antes que el rojo.
-export function errorUmbral(clave: string, p: Plano): string | null {
+function errorUmbral(clave: string, p: Plano): string | null {
   if (Object.values(p).some((v) => !Number.isFinite(v) || v < 0)) return 'Usa números mayores o iguales a 0'
   if (clave === 'AL03' && !(p.rojoMultiploMax > 1)) return 'El rojo debe ser mayor que 1 × Máx'
   for (const k of Object.keys(p).filter((x) => x.startsWith('amarillo'))) {

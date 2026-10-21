@@ -19,6 +19,9 @@
     "capturas": "npm --prefix frontend run capturas",
     "demo:iniciar": "node scripts/demo.mjs iniciar",
     "demo:detener": "node scripts/demo.mjs detener",
-    "test:recorrido": "npm --prefix frontend run test:recorrido"
+    "test:recorrido": "npm --prefix frontend run test:recorrido",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "verificar": "npm run lint && npm test && npm run build && npm run test:humo && npm run test:recorrido"
   }
 }

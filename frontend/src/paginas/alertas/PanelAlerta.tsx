@@ -13,7 +13,7 @@ import { SEMAFORO, Semaforo } from '../../componentes/Semaforo'
 import { Esqueleto } from '../../componentes/Tarjeta'
 import { antiguedad, fecha, numero } from '../../utils/formato'
 
-export const RESULTADOS = ['Traslado emitido', 'Conteo programado o realizado', 'Ajuste revisado', 'Lote en liquidación o cuarentena', 'Cliente contactado', 'Pedido reprogramado', 'Escalado por correo', 'Sin acción: condición esperada', 'Otro']
+const RESULTADOS = ['Traslado emitido', 'Conteo programado o realizado', 'Ajuste revisado', 'Lote en liquidación o cuarentena', 'Cliente contactado', 'Pedido reprogramado', 'Escalado por correo', 'Sin acción: condición esperada', 'Otro']
 
 // Etiquetas legibles para los datos de apoyo de cada alerta.
 const ETIQUETAS: Record<string, string> = {
@@ -91,7 +91,7 @@ const ICONO_HISTORIAL = { CREADA: CirclePlus, CAMBIO_COLOR: Palette, ESCALADA: T
 const TITULO_HISTORIAL = { CREADA: 'Creada', CAMBIO_COLOR: 'Cambio de color', ESCALADA: 'Escalada', ATENDIDA: 'Atendida', RESUELTA: 'Resuelta' }
 
 // ¿Puede el usuario atenderla? Misma regla que el backend: un rol responsable (R06 solo en su almacén) o R07.
-export function motivoNoAtender(a: Pick<AlertaDetalle, 'estado' | 'rolesResponsables' | 'almacen'>, rol?: string, almacenUsuario?: string | null): string | null {
+function motivoNoAtender(a: Pick<AlertaDetalle, 'estado' | 'rolesResponsables' | 'almacen'>, rol?: string, almacenUsuario?: string | null): string | null {
   if (a.estado !== 'ABIERTA') return a.estado === 'ATENDIDA' ? 'Ya fue atendida.' : 'La alerta ya se resolvió.'
   if (rol === 'R07') return null
   if (!rol || !a.rolesResponsables.includes(rol)) return `Solo la atiende ${[...new Set([...a.rolesResponsables, 'R07'])].join(' o ')}.`

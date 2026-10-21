@@ -9,7 +9,7 @@ import type { ParametrosArticulo, ResumenAlmacenArticulo } from '../../api/tipos
 import { decimal, numero, porcentaje } from '../../utils/formato'
 
 // Las fórmulas con los números reales que devuelve el backend (la ficha no recalcula nada).
-export function Formulas({ p }: { p: ParametrosArticulo }) {
+function Formulas({ p }: { p: ParametrosArticulo }) {
   const lineas = [
     `SS = Z × σd × √L = ${decimal(p.z)} × ${decimal(p.desviacionDemanda)} × √${p.leadTimeDias} = ${numero(p.stockSeguridad)}`,
     `ROP = d × L + SS = ${numero(p.demandaDiaria)} × ${p.leadTimeDias} + ${numero(p.stockSeguridad)} = ${numero(p.rop)}`,

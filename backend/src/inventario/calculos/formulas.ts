@@ -8,19 +8,19 @@ export const NIVEL_SERVICIO: Record<ClaseAbc, { nivelServicio: number; z: number
   C: { nivelServicio: 0.9, z: 1.28 },
 };
 
-export const DIAS_REVISION: Record<ClaseAbc, number> = { A: 7, B: 7, C: 14 };
+const DIAS_REVISION: Record<ClaseAbc, number> = { A: 7, B: 7, C: 14 };
 
 const MS_DIA = 86_400_000;
 
 // Criterio único de redondeo para SS: Math.round.
-export const calcularSS = (z: number, sigma: number, leadTimeDias: number): number =>
+const calcularSS = (z: number, sigma: number, leadTimeDias: number): number =>
   Math.round(z * sigma * Math.sqrt(leadTimeDias));
 
-export const calcularROP = (d: number, leadTimeDias: number, ss: number): number => d * leadTimeDias + ss;
+const calcularROP = (d: number, leadTimeDias: number, ss: number): number => d * leadTimeDias + ss;
 
-export const calcularQ = (d: number, diasRevision: number): number => d * diasRevision;
+const calcularQ = (d: number, diasRevision: number): number => d * diasRevision;
 
-export const calcularMaximo = (rop: number, q: number): number => rop + q;
+const calcularMaximo = (rop: number, q: number): number => rop + q;
 
 export const calcularPosicion = (disponible: number, transito: number): number => disponible + transito;
 

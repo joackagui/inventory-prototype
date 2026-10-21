@@ -12,7 +12,7 @@ interface FotoAlerta {
   mensaje: string;
 }
 
-export async function fotoAlertas(prisma: PrismaClient) {
+async function fotoAlertas(prisma: PrismaClient) {
   const vigentes = await prisma.alerta.findMany({
     where: { estado: { in: ['ABIERTA', 'ATENDIDA'] } },
     include: { almacen: { select: { codigo: true } }, articulo: { select: { codigo: true } } },

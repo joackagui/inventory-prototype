@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:humo": "playwright test --grep-invert \"@capturas|@recorrido\"",
     "capturas": "mkdir -p ../docs/capturas/recorrido && CAPTURAS=1 playwright test --grep \"@capturas|@recorrido\"",
-    "test:recorrido": "playwright test --grep @recorrido"
+    "test:recorrido": "playwright test --grep @recorrido",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\""
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
@@ -39,6 +40,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "happy-dom": "^21.0.4",
     "oxlint": "^1.88.0",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.3.4",
