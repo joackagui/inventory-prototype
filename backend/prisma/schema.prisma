@@ -74,6 +74,8 @@ enum MotivoAjuste {
   PERDIDA_ROBO
   ERROR_REGISTRO
   PROMOCION
+  // Faltante al recibir un traslado: queda en el tránsito hasta que R07 decida.
+  DIFERENCIA_RECEPCION
 }
 
 enum EstadoAjuste {
@@ -90,6 +92,7 @@ enum TipoPromocion {
 }
 
 enum EstadoPromocion {
+  PROPUESTA
   BORRADOR
   ACTIVA
   FINALIZADA
@@ -104,6 +107,21 @@ enum ColorAlerta {
 enum EstadoAlerta {
   ABIERTA
   ATENDIDA
+  RESUELTA
+}
+
+enum TipoHistorialAlerta {
+  CREADA
+  CAMBIO_COLOR
+  ATENDIDA
+  ESCALADA
+  RESUELTA
+}
+
+enum EstadoEventoIntegracion {
+  REINTENTO
+  COLA_ERRORES
+  PROCESADO
 }
 
 // ---------- Maestros ----------
@@ -213,14 +231,17 @@ model Usuario {
   almacenId Int?
   almacen   Almacen? @relation(fields: [almacenId], references: [id])
 
-  movimientos        Movimiento[]
-  pedidos            PedidoSimulado[]
-  traslados          OrdenTraslado[]
-  conteos            ConteoFisico[]
-  ajustesRegistrados AjusteInventario[] @relation("AjusteRegistradoPor")
-  ajustesAprobados   AjusteInventario[] @relation("AjusteAprobadoPor")
-  alertasAtendidas   Alerta[]
-  registrosCambio    RegistroCambio[]
+  movimientos           Movimiento[]
+  pedidos               PedidoSimulado[]
+  traslados             OrdenTraslado[]
+  conteos               ConteoFisico[]
+  ajustesRegistrados    AjusteInventario[] @relation("AjusteRegistradoPor")
+  ajustesAprobados      AjusteInventario[] @relation("AjusteAprobadoPor")
+  alertasAtendidas      Alerta[]
+  historialAlertas      HistorialAlerta[]
+  promocionesPropuestas Promocion[]        @relation("PromocionPropuestaPor")
+  promocionesAprobadas  Promocion[]        @relation("PromocionAprobadaPor")
+  registrosCambio       RegistroCambio[]
 }
 
 model Cliente {
@@ -321,20 +342,21 @@ model LineaPedido {
 }
 
 model OrdenTraslado {
-  id              Int             @id @default(autoincrement())
-  numero          String          @unique
+  id              Int                @id @default(autoincrement())
+  numero          String             @unique
   origenId        Int
-  origen          Almacen         @relation("OrigenTraslado", fields: [origenId], references: [id])
+  origen          Almacen            @relation("OrigenTraslado", fields: [origenId], references: [id])
   destinoId       Int
-  destino         Almacen         @relation("DestinoTraslado", fields: [destinoId], references: [id])
+  destino         Almacen            @relation("DestinoTraslado", fields: [destinoId], references: [id])
   estado          EstadoTraslado
-  fechaEmision    DateTime        @db.Date
-  fechaDespacho   DateTime?       @db.Date
-  fechaRecepcion  DateTime?       @db.Date
+  fechaEmision    DateTime           @db.Date
+  fechaDespacho   DateTime?          @db.Date
+  fechaRecepcion  DateTime?          @db.Date
   usuarioId       Int
-  usuario         Usuario         @relation(fields: [usuarioId], references: [id])
+  usuario         Usuario            @relation(fields: [usuarioId], references: [id])
   lineas          LineaTraslado[]
   capasEnTransito CapaFifo[]
+  ajustes         AjusteInventario[]
 
   @@index([estado])
 }
@@ -376,30 +398,33 @@ model ConteoFisico {
 }
 
 model AjusteInventario {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   articuloId      Int
-  articulo        Articulo      @relation(fields: [articuloId], references: [id])
+  articulo        Articulo       @relation(fields: [articuloId], references: [id])
   almacenId       Int
-  almacen         Almacen       @relation(fields: [almacenId], references: [id])
+  almacen         Almacen        @relation(fields: [almacenId], references: [id])
   ubicacionId     Int
-  ubicacion       Ubicacion     @relation(fields: [ubicacionId], references: [id])
+  ubicacion       Ubicacion      @relation(fields: [ubicacionId], references: [id])
   motivo          MotivoAjuste
   // Con signo: negativo = baja de stock.
   cantidad        Int
   observacion     String?
-  estado          EstadoAjuste  @default(PENDIENTE)
+  estado          EstadoAjuste   @default(PENDIENTE)
   conteoId        Int?
-  conteo          ConteoFisico? @relation(fields: [conteoId], references: [id])
+  conteo          ConteoFisico?  @relation(fields: [conteoId], references: [id])
   // Capa afectada (opcional): si no se indica, una baja consume FIFO.
   capaId          Int?
-  capa            CapaFifo?     @relation(fields: [capaId], references: [id])
+  capa            CapaFifo?      @relation(fields: [capaId], references: [id])
+  // DIFERENCIA_RECEPCION: traslado cuya diferencia sigue en el tránsito.
+  ordenTrasladoId Int?
+  ordenTraslado   OrdenTraslado? @relation(fields: [ordenTrasladoId], references: [id])
   registradoPorId Int
-  registradoPor   Usuario       @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
-  fechaRegistro   DateTime      @db.Date
-  registradoEn    DateTime      @default(now())
+  registradoPor   Usuario        @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
+  fechaRegistro   DateTime       @db.Date
+  registradoEn    DateTime       @default(now())
   aprobadoPorId   Int?
-  aprobadoPor     Usuario?      @relation("AjusteAprobadoPor", fields: [aprobadoPorId], references: [id])
-  fechaResolucion DateTime?     @db.Date
+  aprobadoPor     Usuario?       @relation("AjusteAprobadoPor", fields: [aprobadoPorId], references: [id])
+  fechaResolucion DateTime?      @db.Date
 
   @@index([estado])
 }
@@ -422,23 +447,29 @@ model SaldoEnvase {
 // ---------- Comercial (solo datos) ----------
 
 model Promocion {
-  id           Int             @id @default(autoincrement())
-  nombre       String
-  tipo         TipoPromocion
-  articuloId   Int
-  articulo     Articulo        @relation(fields: [articuloId], references: [id])
-  almacenId    Int?
-  almacen      Almacen?        @relation(fields: [almacenId], references: [id])
+  id               Int             @id @default(autoincrement())
+  nombre           String
+  tipo             TipoPromocion
+  articuloId       Int
+  articulo         Articulo        @relation(fields: [articuloId], references: [id])
+  almacenId        Int?
+  almacen          Almacen?        @relation(fields: [almacenId], references: [id])
   // Liquidación por vencimiento: aplica solo a esta capa.
-  capaId       Int?
-  capa         CapaFifo?       @relation(fields: [capaId], references: [id])
-  fechaInicio  DateTime        @db.Date
-  fechaFin     DateTime        @db.Date
-  topeCajas    Int
-  cajasUsadas  Int             @default(0)
-  descuentoPct Float?
-  estado       EstadoPromocion
-  lineasPedido LineaPedido[]
+  capaId           Int?
+  capa             CapaFifo?       @relation(fields: [capaId], references: [id])
+  fechaInicio      DateTime        @db.Date
+  fechaFin         DateTime        @db.Date
+  topeCajas        Int
+  cajasUsadas      Int             @default(0)
+  descuentoPct     Float?
+  estado           EstadoPromocion
+  // Aprobación de R07 con el identificador del correo del Gerente de Logística y Ventas.
+  referenciaCorreo String?
+  propuestaPorId   Int?
+  propuestaPor     Usuario?        @relation("PromocionPropuestaPor", fields: [propuestaPorId], references: [id])
+  aprobadoPorId    Int?
+  aprobadoPor      Usuario?        @relation("PromocionAprobadaPor", fields: [aprobadoPorId], references: [id])
+  lineasPedido     LineaPedido[]
 }
 
 model Fiesta {
@@ -456,24 +487,69 @@ model Fiesta {
 
 // ---------- Alertas y sistema ----------
 
+// Ver docs/ALERTAS.md. Una sola alerta abierta (ABIERTA o ATENDIDA) por clave: índice único parcial en la migración.
 model Alerta {
-  id             Int          @id @default(autoincrement())
-  codigo         String
-  color          ColorAlerta
-  almacenId      Int
-  almacen        Almacen      @relation(fields: [almacenId], references: [id])
-  articuloId     Int?
-  articulo       Articulo?    @relation(fields: [articuloId], references: [id])
-  mensaje        String
-  estado         EstadoAlerta @default(ABIERTA)
-  fechaOperacion DateTime     @db.Date
-  creadaEn       DateTime     @default(now())
-  atendidaPorId  Int?
-  atendidaPor    Usuario?     @relation(fields: [atendidaPorId], references: [id])
-  atendidaEn     DateTime?
-  resultado      String?
+  id                Int               @id @default(autoincrement())
+  // codigo|almacén|artículo|referencia
+  clave             String
+  codigo            String
+  color             ColorAlerta
+  // Nulo solo en alertas de sistema (AL16).
+  almacenId         Int?
+  almacen           Almacen?          @relation(fields: [almacenId], references: [id])
+  articuloId        Int?
+  articulo          Articulo?         @relation(fields: [articuloId], references: [id])
+  referenciaTipo    String
+  referenciaId      Int?
+  mensaje           String
+  rolesResponsables String[]
+  accionSugerida    String
+  datos             Json
+  estado            EstadoAlerta      @default(ABIERTA)
+  // Fecha simulada de creación y del color actual (desde ahí se mide el escalamiento).
+  fechaOperacion    DateTime          @db.Date
+  fechaColor        DateTime          @db.Date
+  // 0 responsable, 1 R07, 2 Gerente de Logística y Ventas.
+  nivelEscalamiento Int               @default(0)
+  creadaEn          DateTime          @default(now())
+  atendidaPorId     Int?
+  atendidaPor       Usuario?          @relation(fields: [atendidaPorId], references: [id])
+  atendidaEn        DateTime?
+  fechaAtencion     DateTime?         @db.Date
+  resultado         String?
+  comentario        String?
+  fechaResolucion   DateTime?         @db.Date
+  historial         HistorialAlerta[]
 
   @@index([estado, almacenId])
+  @@index([clave])
+}
+
+model HistorialAlerta {
+  id             Int                 @id @default(autoincrement())
+  alertaId       Int
+  alerta         Alerta              @relation(fields: [alertaId], references: [id])
+  tipo           TipoHistorialAlerta
+  colorAnterior  ColorAlerta?
+  colorNuevo     ColorAlerta?
+  nivel          Int?
+  detalle        String?
+  usuarioId      Int?
+  usuario        Usuario?            @relation(fields: [usuarioId], references: [id])
+  fechaOperacion DateTime            @db.Date
+  creadoEn       DateTime            @default(now())
+}
+
+// Eventos simulados para AL16 (falla de integración o conciliación).
+model EventoIntegracion {
+  id             Int                     @id @default(autoincrement())
+  tipo           String
+  referencia     String
+  estado         EstadoEventoIntegracion
+  intentos       Int                     @default(1)
+  fechaOperacion DateTime                @db.Date
+  creadoEn       DateTime                @default(now())
+  procesadoEn    DateTime?
 }
 
 model ConfiguracionSistema {
