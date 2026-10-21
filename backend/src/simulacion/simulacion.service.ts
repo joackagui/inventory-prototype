@@ -38,9 +38,9 @@ export class SimulacionService {
     }
     const anterior = await this.fechaSimulada();
     await this.guardar('fechaSimulada', fecha, usuarioId, 'Fecha de operación simulada (AAAA-MM-DD)');
-    // Casi todas las alertas dependen del tiempo: evaluación completa.
-    await this.eventos.emitAsync(EVENTO_EVALUAR);
-    return { fechaSimulada: fecha, fechaAnterior: anterior };
+    // Casi todas las alertas dependen del tiempo: evaluación completa; se devuelve cuántas cambiaron.
+    const [alertas] = await this.eventos.emitAsync(EVENTO_EVALUAR);
+    return { fechaSimulada: fecha, fechaAnterior: anterior, alertas: alertas ?? null };
   }
 
   async avanzar(dias: number, usuarioId: number) {

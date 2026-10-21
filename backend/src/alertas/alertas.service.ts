@@ -39,26 +39,43 @@ export class AlertasService implements OnApplicationBootstrap {
     await this.evaluar({ pares: [par] }).catch((e: Error) => this.log.error(`Evaluación tras operación: ${e.message}`));
   }
 
-  // Cambio de fecha simulada, eventos de integración, umbrales: evaluación completa.
+  // Cambio de fecha simulada, eventos de integración, umbrales: evaluación completa (devuelve qué cambió).
   @OnEvent(EVENTO_EVALUAR)
   async alEvaluarTodo() {
-    await this.evaluar().catch((e: Error) => this.log.error(`Evaluación completa: ${e.message}`));
+    return this.evaluar().catch((e: Error) => {
+      this.log.error(`Evaluación completa: ${e.message}`);
+      return null;
+    });
   }
 
   async listar(f: FiltroAlertasDto) {
     const where: Prisma.AlertaWhereInput = {
-      estado: f.estado,
+      estado: f.estado ?? (f.orden === 'gravedad' ? VIGENTES : undefined),
       color: f.color,
       codigo: f.codigo,
       almacen: f.almacen ? { codigo: f.almacen } : undefined,
       articulo: f.articulo ? { codigo: f.articulo } : undefined,
       rolesResponsables: f.rol ? { has: f.rol } : undefined,
     };
-    const [total, datos] = await Promise.all([
-      this.prisma.alerta.count({ where }),
-      this.prisma.alerta.findMany({ where, include: conRelaciones, orderBy: [{ codigo: 'asc' }, { id: 'asc' }], skip: (f.pagina - 1) * f.tamano, take: f.tamano }),
-    ]);
-    return { total, pagina: f.pagina, tamano: f.tamano, datos: datos.map((a) => ({ ...a, situacion: SITUACION[a.estado] })) };
+    const fecha = await this.simulacion.fechaOperacion();
+    const todas = await this.prisma.alerta.findMany({ where, include: conRelaciones, orderBy: [{ codigo: 'asc' }, { id: 'asc' }] });
+    if (f.orden === 'gravedad') {
+      todas.sort(
+        (a, b) =>
+          GRAVEDAD[b.color] - GRAVEDAD[a.color] ||
+          Number(a.estado !== 'ABIERTA') - Number(b.estado !== 'ABIERTA') ||
+          b.nivelEscalamiento - a.nivelEscalamiento ||
+          a.fechaColor.getTime() - b.fechaColor.getTime() ||
+          a.id - b.id,
+      );
+    }
+    const datos = todas.slice((f.pagina - 1) * f.tamano, f.pagina * f.tamano);
+    return {
+      total: todas.length,
+      pagina: f.pagina,
+      tamano: f.tamano,
+      datos: datos.map((a) => ({ ...a, situacion: SITUACION[a.estado], antiguedadDias: Math.round((fecha.getTime() - a.fechaOperacion.getTime()) / 86_400_000) })),
+    };
   }
 
   async detalle(id: number) {
@@ -82,6 +99,7 @@ export class AlertasService implements OnApplicationBootstrap {
       porCodigo: contar((a) => a.codigo),
       porAlmacen: contar((a) => a.almacen?.codigo ?? 'SISTEMA'),
       sinAtender: vigentes.filter((a) => a.estado === 'ABIERTA').length,
+      rojasSinAtender: vigentes.filter((a) => a.estado === 'ABIERTA' && a.color === 'ROJO').length,
       escaladas: vigentes.filter((a) => a.nivelEscalamiento > 0).length,
     };
   }

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { ColorAlerta, EstadoAlerta } from '../generated/prisma/enums.js';
 
 export class FiltroAlertasDto {
@@ -13,6 +13,8 @@ export class FiltroAlertasDto {
   @IsOptional() @IsString() articulo?: string;
   /** Rol responsable. @example 'R06' */
   @IsOptional() @IsString() rol?: string;
+  /** gravedad: solo vigentes, rojas sin atender primero, luego escaladas y más antiguas. @example 'gravedad' */
+  @IsOptional() @IsIn(['gravedad']) orden?: 'gravedad';
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pagina = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(500) tamano = 100;
 }

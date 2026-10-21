@@ -56,7 +56,7 @@ export class AlertasController {
   /** Atiende la alerta: rol responsable (R06 solo en su almacén) o R07. La alerta se resuelve sola cuando desaparece la condición. */
   @Post('alertas/:id/atender')
   @HttpCode(200)
-  @Roles('R02', 'R06', 'R07', 'R09')
+  @Roles('R02', 'R03', 'R06', 'R07', 'R09')
   atender(@Param('id', ParseIntPipe) id: number, @Body() dto: AtenderDto, @UsuarioActual() u: UsuarioSesion) {
     return this.servicio.atender(id, dto, u);
   }
