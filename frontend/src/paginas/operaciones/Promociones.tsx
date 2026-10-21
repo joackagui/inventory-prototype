@@ -16,13 +16,14 @@ const TIPOS = [
   { valor: 'LIQUIDACION_VENCIMIENTO', texto: 'Liquidación por vencimiento' },
   { valor: 'ROTACION_EXCESO', texto: 'Rotación de exceso' },
 ]
-const ESTADO: Record<string, string> = { PROPUESTA: 'bg-amarillo-fondo text-amarillo', ACTIVA: 'bg-verde-fondo text-verde', FINALIZADA: 'bg-superficie-2 text-suave', BORRADOR: 'bg-superficie-2 text-suave' }
+const ESTADO: Record<string, string> = { PROPUESTA: 'bg-amarillo-fondo text-amarillo', ACTIVA: 'bg-verde-fondo text-verde', FINALIZADA: 'bg-superficie-2 text-suave', BORRADOR: 'bg-superficie-2 text-suave', RECHAZADA: 'bg-rojo-fondo text-rojo' }
 
 export function Promociones() {
   const { rol, inicial, params } = useAlmacenOperacion()
   const { data: hoy } = useFecha()
   const lista = usePromociones()
-  const [f, setF] = useState({ nombre: '', tipo: 'BONIFICACION', articulo: params.get('articulo') ?? '', almacen: inicial, fechaInicio: '', fechaFin: '', topeCajas: '' })
+  // Desde Fiestas llega prellenada: tipo, vigencia sugerida (dos semanas antes hasta el fin de la fiesta) y nombre.
+  const [f, setF] = useState({ nombre: params.get('nombre') ?? '', tipo: params.get('tipoPromo') ?? 'BONIFICACION', articulo: params.get('articulo') ?? '', almacen: inicial, fechaInicio: params.get('desde') ?? '', fechaFin: params.get('hasta') ?? '', topeCajas: '' })
   const fijar = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
   const inicio = f.fechaInicio || hoy?.fechaSimulada || ''
   const proponer = useMutation({ mutationFn: () => api<Promocion>('/promociones', { metodo: 'POST', cuerpo: { ...f, fechaInicio: inicio, topeCajas: Number(f.topeCajas) } }) })
@@ -85,6 +86,7 @@ export function Promociones() {
                     <span className="num block text-sm text-suave">
                       {fecha(p.fechaInicio)} – {fecha(p.fechaFin)} · propuesta por {p.propuestaPor?.codigo ?? 'seed'}
                       {p.referenciaCorreo && ` · aprobada con ${p.referenciaCorreo}`}
+                      {p.estado === 'RECHAZADA' && ` · rechazada por ${p.rechazadaPor?.codigo}: «${p.comentarioResolucion}»`}
                     </span>
                   </p>
                   <span className={clsx('rounded-full px-2.5 py-1 text-xs font-semibold', ESTADO[p.estado])}>{p.estado.toLowerCase()}</span>

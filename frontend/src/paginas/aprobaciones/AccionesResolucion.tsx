@@ -34,7 +34,7 @@ export function AccionesResolucion({ bloqueo, cargando, onAprobar, onRechazar, t
         </label>
       )}
       <label className="block text-sm">
-        Comentario {pideReferencia ? '' : '(obligatorio para rechazar)'}
+        Comentario (obligatorio para rechazar)
         <textarea className={`${campo} mt-1`} rows={2} value={comentario} onChange={(e) => setComentario(e.target.value)} disabled={!!bloqueo} aria-label="Comentario" aria-invalid={sinComentario} />
       </label>
       {sinComentario && (

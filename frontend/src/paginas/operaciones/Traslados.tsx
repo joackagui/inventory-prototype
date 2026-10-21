@@ -147,6 +147,52 @@ function TarjetaTraslado({ t, resaltado, onResultado }: { t: Traslado; resaltado
   )
 }
 
+// Traslados extraordinarios para una fiesta: llegan desde Fiestas con la brecha de cada artículo (?extraordinario=ART:cant,...).
+function Extraordinarios({ destino, lineas, onListo }: { destino: string; lineas: { articulo: string; cantidad: number }[]; onListo: (t: Traslado) => void }) {
+  const { almacenes } = useAlmacenOperacion()
+  const origenes = almacenes.filter((a) => a.codigo !== destino)
+  const [valores, setValores] = useState(lineas.map((l) => ({ ...l, origen: origenes[0]?.codigo ?? '', cantidad: String(l.cantidad), hecho: false })))
+  const emitir = useMutation({
+    mutationFn: (i: number) => api<Traslado>('/traslados', { metodo: 'POST', cuerpo: { origen: valores[i].origen || origenes[0]?.codigo, destino, lineas: [{ articulo: valores[i].articulo, cantidad: Number(valores[i].cantidad) }] } }),
+    onSuccess: (t, i) => {
+      setValores(valores.map((v, j) => (j === i ? { ...v, hecho: true } : v)))
+      onListo(t)
+    },
+  })
+  return (
+    <Tarjeta titulo="Traslados extraordinarios para la fiesta" subtitulo={`Hacia ${destino}: la cantidad propuesta es la brecha (pronóstico − posición); emite uno por artículo`}>
+      <ul className="space-y-2" data-testid="extraordinarios">
+        {valores.map((v, i) => (
+          <li key={v.articulo} className="grid items-end gap-3 rounded-xl bg-superficie-2 p-3 sm:grid-cols-[1fr_1fr_1fr_auto]" data-articulo={v.articulo}>
+            <p className="font-semibold">{v.articulo}</p>
+            <label className="text-sm">
+              Origen
+              <select className={clsx(campo, 'mt-1')} value={v.origen} onChange={(e) => setValores(valores.map((x, j) => (j === i ? { ...x, origen: e.target.value } : x)))} aria-label={`Origen ${v.articulo}`}>
+                {origenes.map((o) => (
+                  <option key={o.codigo} value={o.codigo}>
+                    {o.codigo}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Cantidad
+              <input className={clsx(campo, 'mt-1')} type="number" min={1} value={v.cantidad} onChange={(e) => setValores(valores.map((x, j) => (j === i ? { ...x, cantidad: e.target.value } : x)))} aria-label={`Cantidad ${v.articulo}`} />
+            </label>
+            {v.hecho ? (
+              <span className="pb-2 text-sm font-semibold text-verde">Emitido ✓</span>
+            ) : (
+              <BotonPrimario type="button" disabled={!(Number(v.cantidad) > 0)} cargando={emitir.isPending && emitir.variables === i} onClick={() => emitir.mutate(i)}>
+                Emitir
+              </BotonPrimario>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Tarjeta>
+  )
+}
+
 export function Traslados() {
   const { fijo, inicial, rol } = useAlmacenOperacion()
   const [params] = useSearchParams()
@@ -157,8 +203,13 @@ export function Traslados() {
   const propuesta = usePropuesta(vista === 'propuestas' ? (fijo ?? destino) : undefined)
   const traslados = useTraslados()
   const resaltado = Number(params.get('id'))
+  const extraordinarios = (params.get('extraordinario') ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map((x) => ({ articulo: x.split(':')[0], cantidad: Number(x.split(':')[1]) }))
   return (
     <div className="space-y-6">
+      {rol === 'R07' && extraordinarios.length > 0 && <Extraordinarios destino={inicial} lineas={extraordinarios} onListo={(t) => setResultado({ titulo: `Traslado ${t.numero} emitido`, r: t })} />}
       <div role="tablist" className="flex gap-1 border-b border-borde">
         {(['propuestas', 'seguimiento'] as const).map((v) => (
           <button key={v} role="tab" aria-selected={vista === v} onClick={() => setVista(v)} className={clsx('-mb-px border-b-2 px-4 py-2 font-semibold', vista === v ? 'border-acento text-acento' : 'border-transparent text-suave')}>

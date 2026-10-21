@@ -71,8 +71,9 @@ function DetalleAjuste({ id, onResultado }: { id: number; onResultado: (r: Resul
 function DetallePromocion({ p, onResultado }: { p: Promocion; onResultado: (r: Resultado) => void }) {
   const { rol } = useUsuarioActual()
   const decidir = useMutation({
-    mutationFn: ({ accion, referencia }: { accion: 'aprobar' | 'cerrar'; referencia?: string }) => api<Promocion>(`/promociones/${p.id}/${accion}`, { metodo: 'POST', cuerpo: accion === 'aprobar' ? { referenciaCorreo: referencia } : {} }),
-    onSuccess: (r, v) => onResultado({ titulo: `Promoción «${p.nombre}» ${v.accion === 'aprobar' ? 'aprobada' : 'rechazada'}`, r, nota: v.accion === 'aprobar' ? `Activa con la referencia ${r.referenciaCorreo}.` : 'Queda cerrada (FINALIZADA).' }),
+    mutationFn: ({ accion, referencia, comentario }: { accion: 'aprobar' | 'rechazar'; referencia?: string; comentario?: string }) =>
+      api<Promocion>(`/promociones/${p.id}/${accion}`, { metodo: 'POST', cuerpo: accion === 'aprobar' ? { referenciaCorreo: referencia } : { comentario } }),
+    onSuccess: (r, v) => onResultado({ titulo: `Promoción «${p.nombre}» ${v.accion === 'aprobar' ? 'aprobada' : 'rechazada'}`, r, nota: v.accion === 'aprobar' ? `Activa con la referencia ${r.referenciaCorreo}.` : `Queda RECHAZADA: ${r.comentarioResolucion}` }),
   })
   return (
     <div className="space-y-4">
@@ -82,7 +83,7 @@ function DetallePromocion({ p, onResultado }: { p: Promocion; onResultado: (r: R
       <p className="text-sm">
         Stock vendible {numero(p.vendible)} · cobertura {numero(p.coberturaDias, 1)} días para {numero(p.diasRestantes)} días de promoción
       </p>
-      <AccionesResolucion bloqueo={motivoNoAprobar(rol, undefined)} cargando={decidir.isPending} pideReferencia textoRechazar="Rechazar (cerrar)" onAprobar={(_, referencia) => decidir.mutate({ accion: 'aprobar', referencia })} onRechazar={() => decidir.mutate({ accion: 'cerrar' })} />
+      <AccionesResolucion bloqueo={motivoNoAprobar(rol, undefined)} cargando={decidir.isPending} pideReferencia onAprobar={(_, referencia) => decidir.mutate({ accion: 'aprobar', referencia })} onRechazar={(comentario) => decidir.mutate({ accion: 'rechazar', comentario })} />
     </div>
   )
 }

@@ -19,10 +19,10 @@ export const SECCIONES: Seccion[] = [
   { ruta: '/articulos', titulo: 'Artículos', descripcion: 'Ficha del artículo: parámetros, capas FIFO, kardex valorado y movimiento', icono: Boxes, roles: TODOS },
   { ruta: '/operaciones', titulo: 'Operaciones', descripcion: 'Recepción, pedido y despacho, traslados, conteos, ajustes, cuarentena y envases', icono: Truck, roles: TODOS },
   { ruta: '/aprobaciones', titulo: 'Aprobaciones', descripcion: 'Ajustes, mermas, diferencias de recepción y promociones pendientes', icono: ClipboardCheck, roles: ['R07', 'R08'] },
-  { ruta: '/analisis', titulo: 'Análisis', descripcion: 'Análisis ABC / Pareto y ranking de ajustes por motivo', icono: PieChart, roles: LECTURA },
-  { ruta: '/fiestas', titulo: 'Fiestas', descripcion: 'Calendario, factor estacional, ROP de fiesta, pronóstico y preparación', icono: PartyPopper, roles: LECTURA },
-  { ruta: '/costos', titulo: 'Costos', descripcion: 'Adquisición, conservación, pedido y agotamiento por artículo', icono: Calculator, roles: LECTURA },
-  { ruta: '/administracion', titulo: 'Administración', descripcion: 'Fecha simulada, usuarios, re-siembra y simulación de fallas (AL11, AL16)', icono: Settings, roles: ['R07', 'R09'] },
+  { ruta: '/analisis', titulo: 'Análisis', descripcion: 'Análisis ABC / Pareto y ranking de ajustes por motivo', icono: PieChart, roles: ['R02', 'R07', 'R08'] },
+  { ruta: '/fiestas', titulo: 'Fiestas', descripcion: 'Calendario, factor estacional, ROP de fiesta, pronóstico y preparación', icono: PartyPopper, roles: ['R02', 'R07', 'R08'] },
+  { ruta: '/costos', titulo: 'Costos', descripcion: 'Adquisición, conservación, pedido y agotamiento por artículo', icono: Calculator, roles: ['R07', 'R08'] },
+  { ruta: '/administracion', titulo: 'Administración', descripcion: 'Fecha simulada, usuarios, re-siembra y simulación de fallas (AL11, AL16)', icono: Settings, roles: ['R07', 'R08', 'R09'] },
 ]
 
 export const puede = {
