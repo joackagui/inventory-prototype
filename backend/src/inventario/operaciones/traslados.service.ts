@@ -5,7 +5,7 @@ import type { EstadoTraslado } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SimulacionService } from '../../simulacion/simulacion.service.js';
 import { exigirAlmacen, type UsuarioSesion } from '../../usuarios/autorizacion.js';
-import { almacenPlanta, articuloPorCodigo, bloquear, consumir, copiarCapa, type DatosMovimiento, emitirCambio, masDias, type Par, registrar, saldo, type Tx, ubicacion, ubicacionPicking } from '../motor.js';
+import { almacenPlanta, articuloPorCodigo, bloquear, consumir, copiarCapa, type DatosMovimiento, emitirCambio, masDias, type Par, type Pieza, registrar, resumenConsumo, saldo, type Tx, ubicacion, ubicacionPicking } from '../motor.js';
 import { obtenerStock, resolverAlmacen } from '../stock.js';
 import { TX } from './comun.js';
 import type { RecepcionTrasladoDto, TrasladoDto } from './traslados.dto.js';
@@ -85,12 +85,14 @@ export class TrasladosService {
       const transitoId = orden.destino.almacenTransitoId!;
       const enRuta = await ubicacion(tx, transitoId, 'EN-RUTA');
       const movs: DatosMovimiento[] = [];
+      const consumidas: Pieza[] = [];
       for (const l of orden.lineas) {
         const s = await saldo(tx, { articuloId: l.articuloId, almacenId: orden.origenId }, fecha, diasMinimos);
         if (s.vendible < l.cantidadDespachada) {
           throw new ErrorNegocio(409, 'STOCK_INSUFICIENTE', `El origen no tiene disponible suficiente de ${l.articulo.codigo}`, { disponible: Math.max(0, s.vendible), solicitado: l.cantidadDespachada });
         }
         const piezas = await consumir(tx, { articuloId: l.articuloId, almacenId: orden.origenId, cantidad: l.cantidadDespachada, venceDesde: masDias(fecha, diasMinimos) });
+        consumidas.push(...piezas);
         for (const p of piezas) {
           const nueva = await copiarCapa(tx, p.capa, { almacenId: transitoId, ubicacionId: enRuta.id, cantidad: p.cantidad, fechaEntrada: fecha, ordenTrasladoId: id });
           const base = { articuloId: l.articuloId, costoUnitario: p.capa.costoUnitario, fechaOperacion: fecha, usuarioId: u.id, motivo: `Traslado ${orden.numero}`, documentoTipo: 'OrdenTraslado', documentoId: id };
@@ -99,10 +101,10 @@ export class TrasladosService {
         }
       }
       await registrar(tx, movs);
-      return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado: 'EN_TRANSITO', fechaDespacho: fecha }, include: detalle }), pares };
+      return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado: 'EN_TRANSITO', fechaDespacho: fecha }, include: detalle }), pares, consumidas };
     }, TX);
     await emitirCambio(this.eventos, r.pares, 'traslado_despacho');
-    return r.orden;
+    return { ...r.orden, ...resumenConsumo(r.consumidas) };
   }
 
   // Recepción (R06 del destino). La diferencia (despachado − recibido) queda registrada primero como ajuste PENDIENTE
@@ -122,6 +124,7 @@ export class TrasladosService {
       const cuarentena = await ubicacion(tx, orden.destinoId, 'CUAR-01');
       let conDiferencia = false;
       const movs: DatosMovimiento[] = [];
+      const consumidas: Pieza[] = [];
       for (const l of orden.lineas) {
         const recibida = dto.lineas.find((x) => x.articulo === l.articulo.codigo);
         if (!recibida) throw new ErrorNegocio(400, 'RECEPCION_INCOMPLETA', `Falta la cantidad recibida de ${l.articulo.codigo}`);
@@ -149,6 +152,7 @@ export class TrasladosService {
         if (recibida.cantidadRecibida > 0) {
           const destinoUbic = danado ? cuarentena : await ubicacionPicking(tx, orden.destinoId, l.articulo);
           for (const p of await consumir(tx, { articuloId: l.articuloId, almacenId: transitoId, cantidad: recibida.cantidadRecibida, ordenTrasladoId: id })) {
+            consumidas.push(p);
             // La capa recibida recuerda su traslado (AL09 sigue la mercadería dañada hasta que sale de cuarentena).
             const nueva = await copiarCapa(tx, p.capa, { almacenId: orden.destinoId, ubicacionId: destinoUbic.id, cantidad: p.cantidad, fechaEntrada: fecha, estado: danado ? 'CUARENTENA' : 'DISPONIBLE', ordenTrasladoId: id });
             const mov = { ...base, costoUnitario: p.capa.costoUnitario, motivo: `Recepción traslado ${orden.numero}` };
@@ -159,10 +163,25 @@ export class TrasladosService {
       }
       await registrar(tx, movs);
       const estado: EstadoTraslado = conDiferencia ? 'CON_DIFERENCIA' : 'RECIBIDA';
-      return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado, fechaRecepcion: fecha }, include: detalle }), pares };
+      return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado, fechaRecepcion: fecha }, include: detalle }), pares, consumidas };
     }, TX);
     await emitirCambio(this.eventos, r.pares, 'traslado_recepcion');
-    return r.orden;
+    return { ...r.orden, ...resumenConsumo(r.consumidas) };
+  }
+
+  // Detalle con líneas, capas que siguen en tránsito, diferencias pendientes y movimientos.
+  async detalle(id: number) {
+    const orden = await this.prisma.ordenTraslado.findUnique({ where: { id }, include: { ...detalle, usuario: { select: { codigo: true } }, ajustes: { select: { id: true, estado: true, cantidad: true, articuloId: true } } } });
+    if (!orden) throw noEncontrado(`El traslado ${id}`);
+    const [movimientos, enTransito] = [
+      await this.prisma.movimiento.findMany({
+        where: { documentoTipo: 'OrdenTraslado', documentoId: id },
+        include: { almacen: { select: { codigo: true } }, articulo: { select: { codigo: true } }, capa: { select: { lote: true } }, usuario: { select: { codigo: true } } },
+        orderBy: { id: 'asc' },
+      }),
+      await this.prisma.capaFifo.findMany({ where: { ordenTrasladoId: id, cantidadRestante: { gt: 0 }, almacen: { tipo: 'TRANSITO' } }, select: { id: true, lote: true, cantidadRestante: true, costoUnitario: true } }),
+    ];
+    return { ...orden, movimientos, enTransito: enTransito.map((c) => ({ ...c, costoUnitario: Number(c.costoUnitario) })) };
   }
 
   listar(estado?: EstadoTraslado) {

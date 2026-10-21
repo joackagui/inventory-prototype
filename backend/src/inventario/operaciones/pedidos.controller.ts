@@ -23,6 +23,13 @@ export class PedidosController {
     return this.servicio.listar(filtro);
   }
 
+  /** Detalle del pedido con sus líneas y movimientos (reserva, salidas FIFO, liberación). */
+  @Get(':id')
+  @Roles(...TODOS)
+  detalle(@Param('id', ParseIntPipe) id: number) {
+    return this.servicio.detalle(id);
+  }
+
   /** Despacha el pedido (R06 del almacén): salida FIFO valorada al costo de cada capa. */
   @Post(':id/despachar')
   @HttpCode(200)

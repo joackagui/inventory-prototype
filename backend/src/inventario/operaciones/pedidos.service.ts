@@ -5,7 +5,7 @@ import type { EstadoPedido } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SimulacionService } from '../../simulacion/simulacion.service.js';
 import { exigirAlmacen, type UsuarioSesion } from '../../usuarios/autorizacion.js';
-import { almacenPlanta, articuloPorCodigo, bloquear, consumir, type DatosMovimiento, emitirCambio, masDias, registrar, saldo, type Tx, ubicacionPicking } from '../motor.js';
+import { almacenPlanta, articuloPorCodigo, bloquear, consumir, type DatosMovimiento, emitirCambio, masDias, type Pieza, registrar, resumenConsumo, saldo, type Tx, ubicacionPicking } from '../motor.js';
 import { TX } from './comun.js';
 import type { PedidoDto } from './pedidos.dto.js';
 
@@ -105,7 +105,7 @@ export class PedidosService {
       const actual = await tx.pedidoSimulado.findUniqueOrThrow({ where: { id } });
       if (actual.estado !== 'CONFIRMADO') throw new ErrorNegocio(409, 'PEDIDO_NO_CONFIRMADO', `El pedido ${pedido.numero} está ${actual.estado}; solo se despachan pedidos confirmados`);
       const movs: DatosMovimiento[] = [];
-      const salidas = [];
+      const salidas: (Pieza & { articulo: string; bonificacion: boolean })[] = [];
       for (const l of pedido.lineas) {
         const piezas = await consumir(tx, { articuloId: l.articuloId, almacenId: pedido.almacenId, cantidad: l.cantidad, venceDesde: masDias(fecha, diasMinimos) });
         for (const p of piezas) {
@@ -123,7 +123,7 @@ export class PedidosService {
             documentoTipo: 'PedidoSimulado',
             documentoId: pedido.id,
           });
-          salidas.push({ articulo: l.articulo.codigo, capaId: p.capa.id, lote: p.capa.lote, cantidad: p.cantidad, costoUnitario: Number(p.capa.costoUnitario), valor: Math.round(p.cantidad * Number(p.capa.costoUnitario) * 100) / 100, bonificacion: l.bonificacion });
+          salidas.push({ ...p, articulo: l.articulo.codigo, bonificacion: l.bonificacion });
         }
       }
       await registrar(tx, movs);
@@ -131,11 +131,12 @@ export class PedidosService {
       return { pedido, salidas };
     }, TX);
     await emitirCambio(this.eventos, r.pedido.lineas.map((l) => ({ articuloId: l.articuloId, almacenId: r.pedido.almacenId })), 'despacho');
+    const { capasConsumidas, costoTotal } = resumenConsumo(r.salidas);
     return {
       pedido: r.pedido.numero,
       estado: 'DESPACHADO',
-      salidas: r.salidas,
-      costoTotal: Math.round(r.salidas.reduce((s, x) => s + x.valor, 0) * 100) / 100,
+      capasConsumidas: capasConsumidas.map((c, i) => ({ ...c, articulo: r.salidas[i].articulo, bonificacion: r.salidas[i].bonificacion })),
+      costoTotal,
     };
   }
 
@@ -165,12 +166,26 @@ export class PedidosService {
     return pedido;
   }
 
-  listar(filtro: { estado?: EstadoPedido; almacen?: string }) {
-    return this.prisma.pedidoSimulado.findMany({
+  async listar(filtro: { estado?: EstadoPedido; almacen?: string }) {
+    const fecha = await this.simulacion.fechaOperacion();
+    const pedidos = await this.prisma.pedidoSimulado.findMany({
       where: { estado: filtro.estado, almacen: filtro.almacen ? { codigo: filtro.almacen } : undefined },
       include: conLineas,
       orderBy: { id: 'desc' },
     });
+    return pedidos.map((p) => ({ ...p, antiguedadDias: Math.round((fecha.getTime() - p.fechaOperacion.getTime()) / 86_400_000) }));
+  }
+
+  async detalle(id: number) {
+    const fecha = await this.simulacion.fechaOperacion();
+    const p = await this.prisma.pedidoSimulado.findUnique({ where: { id }, include: { ...conLineas, usuario: { select: { codigo: true } } } });
+    if (!p) throw noEncontrado(`El pedido ${id}`);
+    const movimientos = await this.prisma.movimiento.findMany({
+      where: { documentoTipo: 'PedidoSimulado', documentoId: id },
+      include: { articulo: { select: { codigo: true } }, capa: { select: { lote: true } }, usuario: { select: { codigo: true } } },
+      orderBy: { id: 'asc' },
+    });
+    return { ...p, antiguedadDias: Math.round((fecha.getTime() - p.fechaOperacion.getTime()) / 86_400_000), movimientos };
   }
 
   private async pedidoBloqueable(tx: Tx, id: number) {

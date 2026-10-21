@@ -153,3 +153,47 @@ export async function emitirCambio(eventos: EventEmitter2, pares: Par[], operaci
     await eventos.emitAsync(EVENTO_CAMBIO, { ...p, operacion });
   }
 }
+
+const r2 = (x: number) => Math.round(x * 100) / 100;
+
+// Capas que salieron en una operación (para la respuesta y el panel de resultado).
+export function resumenConsumo(piezas: Pieza[]) {
+  const capasConsumidas = piezas.map((p) => ({
+    capaId: p.capa.id,
+    lote: p.capa.lote,
+    cantidad: p.cantidad,
+    costoUnitario: Number(p.capa.costoUnitario),
+    valor: r2(p.cantidad * Number(p.capa.costoUnitario)),
+    vencimiento: p.capa.fechaVencimiento.toISOString().slice(0, 10),
+  }));
+  return { capasConsumidas, costoTotal: r2(capasConsumidas.reduce((s, c) => s + c.valor, 0)) };
+}
+
+// Valor de un ajuste sin aplicarlo: una baja recorre las capas como consumir() (la indicada, las de su traslado o FIFO);
+// un alta se valora al costo de la última capa. Lo usan la vista previa, la bandeja de aprobaciones y el detalle.
+export async function valorarAjuste(tx: Tx, a: Par & { cantidad: number; capaId?: number | null; ordenTrasladoId?: number | null }) {
+  if (a.cantidad > 0) {
+    const ultima = await tx.capaFifo.findFirst({ where: { articuloId: a.articuloId, almacenId: a.almacenId }, orderBy: [{ fechaEntrada: 'desc' }, { id: 'desc' }] });
+    const costo = ultima ? Number(ultima.costoUnitario) : Number((await tx.articulo.findUniqueOrThrow({ where: { id: a.articuloId } })).costoFifoInicial);
+    return { valor: r2(a.cantidad * costo), capas: [{ lote: ultima?.lote ?? 'nueva', cantidad: a.cantidad, costoUnitario: costo }] };
+  }
+  const capas = await tx.capaFifo.findMany({
+    where: {
+      articuloId: a.articuloId,
+      almacenId: a.almacenId,
+      cantidadRestante: { gt: 0 },
+      ...(a.capaId ? { id: a.capaId } : { estado: 'DISPONIBLE' }),
+      ...(a.ordenTrasladoId ? { ordenTrasladoId: a.ordenTrasladoId } : {}),
+    },
+    orderBy: [{ fechaEntrada: 'asc' }, { id: 'asc' }],
+  });
+  let pendiente = -a.cantidad;
+  const usadas = [];
+  for (const c of capas) {
+    if (!pendiente) break;
+    const n = Math.min(pendiente, c.cantidadRestante);
+    usadas.push({ lote: c.lote, cantidad: n, costoUnitario: Number(c.costoUnitario) });
+    pendiente -= n;
+  }
+  return { valor: -r2(usadas.reduce((s, u) => s + u.cantidad * u.costoUnitario, 0)), capas: usadas, faltante: pendiente };
+}

@@ -25,6 +25,13 @@ export class TrasladosController {
     return this.servicio.listar(q.estado);
   }
 
+  /** Detalle del traslado: líneas, capas en tránsito, diferencias pendientes y movimientos. */
+  @Get(':id')
+  @Roles(...LECTURA)
+  detalle(@Param('id', ParseIntPipe) id: number) {
+    return this.servicio.detalle(id);
+  }
+
   /** Emite una orden de traslado entre plantas (R07). */
   @Post()
   @Roles('R07')
