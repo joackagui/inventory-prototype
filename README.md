@@ -41,6 +41,8 @@ Abre <http://localhost:5173>: se abre el **Tablero** como `LOG-01` (Coordinador 
 La API con ejemplos está en <http://localhost:3000/api/docs>.
 
 Pantallas disponibles:
+- **Operaciones** (`/operaciones`): recepción, pedidos (reserva y despacho FIFO), traslados (propuestas y seguimiento), conteo ciego, ajustes, cuarentena, envases y promociones. Cada operación muestra las capas FIFO consumidas, su costo y qué alertas se crearon o resolvieron.
+- **Aprobaciones** (`/aprobaciones`, R07): ajustes y mermas, diferencias de recepción, promociones propuestas y capas en cuarentena.
 - **Tablero:** KPIs y semáforo por artículo y almacén.
 - **Centro de alertas** (`/alertas`): filtros, detalle con medidor, atención y umbrales.
 - **Artículos** (`/articulos`) y **ficha del artículo** (`/articulos/ART-10021`): posición de stock, parámetros con fórmulas y edición con vista previa, capas FIFO y kardex.

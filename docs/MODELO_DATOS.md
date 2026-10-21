@@ -48,7 +48,7 @@ erDiagram
 | **PedidoSimulado / LineaPedido** | Pedido de demo. Si está `CONFIRMADO`, sus líneas son el **reservado** del almacén. Una línea puede ser `bonificacion` (sin cargo), ligada a una promoción BONIFICACION. Sin stock, el pedido queda `PENDIENTE_REVISION` sin reservas. |
 | **OrdenTraslado / LineaTraslado** | Traslado origen → tránsito → destino, con cantidades despachadas y recibidas y el estado de recepción (CONFORME o DANADO). |
 | **ConteoFisico** | Conteo cíclico o general por ubicación: sistema vs. contado, diferencia, % y `requiereRecuento` (si supera la tolerancia). |
-| **AjusteInventario** | Ajuste o merma con motivo, capa opcional y traslado opcional (`DIFERENCIA_RECEPCION`, sobre el stock en tránsito). R06 lo registra y R07 lo aprueba (PENDIENTE → APROBADO/RECHAZADO), nunca la misma persona. Solo al aprobarse genera movimientos. |
+| **AjusteInventario** | Ajuste o merma con motivo, comentario de resolución de R07 (obligatorio al rechazar), capa opcional y traslado opcional (`DIFERENCIA_RECEPCION`, sobre el stock en tránsito). R06 lo registra y R07 lo aprueba (PENDIENTE → APROBADO/RECHAZADO), nunca la misma persona. Solo al aprobarse genera movimientos. |
 | **Cliente / SaldoEnvase** | Clientes genéricos y envases retornables entregados/devueltos (por cantidad, sin FIFO). |
 | **Promocion** | Promociones con tipo, vigencia, tope, cajas usadas y capa opcional (la liquidación aplica a una capa). R02 la propone (PROPUESTA) y R07 la aprueba con `referenciaCorreo` (ACTIVA). Dos promociones ACTIVAS del mismo tipo, artículo y fechas no se solapan. |
 | **Fiesta** | Calendario de fiestas: rango, `diasFiesta` reales, zonas (códigos de almacén), factor f y semanas de preparación. |
@@ -184,3 +184,16 @@ El seed termina evaluando las alertas con el mismo motor de la API. Quedan 19 vi
 | Cochabamba | 🔴 AL08 | ART-10035 | OT-2027-0001, 7 días en tránsito > L + 2 (6) |
 | Santa Cruz | 🟡 AL01 | ART-10048 | posición 100 ≤ ROP 128 |
 | Santa Cruz | 🔵 AL03 | ART-30005 | 600 > Máx 468 |
+
+## Historial del seed (operación sana)
+
+Antes de las capas finales, cada artículo y almacén sigue una **regla de reposición**:
+- arranca con el Máx;
+- entra un lote Q cuando el stock al inicio del día no cubre ROP + d;
+- las ventas nunca superan el stock (ventas perdidas).
+
+Hay dos **excepciones puntuales** de reposición demorada en artículos que ya tienen alertas en el estado base: ART-10035 en La Paz (días hábiles 40–49) y ART-10048 en La Paz (55–66). Allí se ve un quiebre en el historial.
+
+Al final, las últimas entradas se recortan (o la última se agranda) para llegar exactamente al stock con que empiezan las capas finales. Por eso el **estado del 30/06/2027 es idéntico**: disponibles, reservados, capas con su vida restante y costos, las 19 alertas, el traslado en tránsito, los ajustes y los envases.
+
+El seed sigue siendo determinista. Las reservas del seed quedan ligadas a su pedido (`documentoId`).

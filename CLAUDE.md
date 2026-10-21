@@ -45,6 +45,7 @@ backend/
     articulos/ almacenes/ salud/   consultas
     alertas/evaluadores.ts  evaluadores puros AL01–AL16, catálogo de roles y acciones, validación de umbrales (+ tests)
     alertas/evaluacion.ts   evaluación contra la base y ciclo de vida (crear, color, resolver, escalar)
+    alertas/efecto.ts    interceptor global: todo POST/PUT responde con efectoAlertas (creadas/resueltas/cambiadas)
     alertas/             API de alertas, semáforo y umbrales; escucha inventario.cambio y alertas.evaluar
     analisis/            GET /api/tablero/resumen, /costos, /fiestas/preparacion, /analisis/pareto-ajustes
     articulos/           ArticulosService: /articulos/estado, /:codigo/resumen, /serie, /capas, /kardex (paginado)
@@ -55,7 +56,7 @@ frontend/                ver docs/FRONTEND.md
   src/api/               cliente con X-Usuario, tipos, hooks de React Query
   src/sesion/            usuario/almacén/tema y permisos del menú
   src/componentes/       semáforo, KPI, reloj simulado, selectores, panel lateral
-  src/paginas/           tablero/, alertas/ (Centro de alertas), articulos/ (listado y ficha), Proximamente, SinAcceso
+  src/paginas/           tablero/, alertas/, articulos/, operaciones/ (8 operaciones), aprobaciones/ (bandeja R07), Proximamente, SinAcceso
   e2e/                   prueba de humo Playwright (Chromium local)
 ```
 
@@ -90,6 +91,7 @@ frontend/                ver docs/FRONTEND.md
 - Errores con `ErrorNegocio(status, CODIGO, 'mensaje en español', detalles)`.
 - DTOs en archivos `*.dto.ts` con class-validator y JSDoc `@example` (el plugin de Swagger los lee).
 - Cada operación nueva lleva su test de integración y debe dejar `GET /api/integridad` en OK.
+- Respuestas de escritura: no calcules el efecto en alertas a mano (lo agrega el interceptor). Si una operación consume capas, devuelve `resumenConsumo(piezas)` (capasConsumidas + costoTotal) de `motor.ts`.
 - Alertas: la lógica de umbrales va en `alertas/evaluadores.ts` (pura, con tests); los datos y el ciclo de vida, en `alertas/evaluacion.ts`. Una operación nueva que cambia stock solo necesita `await emitirCambio(...)`; algo que dependa del tiempo o sea global emite `EVENTO_EVALUAR`.
 - Frontend: sin cálculos de negocio (todo viene de la API); colores solo por tokens de `index.css`; semáforo siempre con ícono + texto; formato con `utils/formato.ts`; hooks en `api/consultas.ts` con el usuario en la queryKey; almacenes con `useAlmacenes()` (nunca códigos fijos); la ficha muestra fórmulas con los números del backend, no las recalcula. No descargar navegadores para Playwright: usar el Chromium de la caché.
 - Toda alerta usa la fecha simulada y umbrales de `ConfiguracionSistema.umbralesAlertas`; nunca la fecha real.

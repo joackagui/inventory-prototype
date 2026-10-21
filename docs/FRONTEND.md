@@ -31,6 +31,11 @@ src/
                      atender), Umbrales (edición validada + bitácora)
     articulos/       Articulos (tabla) y Ficha: SeccionPosicion, SeccionParametros (fórmulas + diálogo con vista
                      previa), SeccionCapas (cola FIFO), SeccionKardex (serie + kardex + CSV)
+    operaciones/     Operaciones: menú de tarjetas según el rol (?tipo=recepcion|pedidos|traslados|conteo|ajustes|cuarentena|
+                     envases|promociones, más &articulo=&almacen=&id=&cliente= para llegar prellenado); comun.tsx (almacén fijo
+                     para R06, selectores), LineasRecepcion (recepción de traslado con diferencias)
+    aprobaciones/    Aprobaciones: bandeja (ajustes, diferencias de recepción, promociones propuestas, capas en cuarentena),
+                     AccionesResolucion (aprobar / rechazar con comentario obligatorio; «quien registra no aprueba»)
     Proximamente     recibe y muestra los parámetros de la URL (?accion=…&articulo=…) hasta que la pantalla exista
     SinAcceso
   utils/formato.ts   números 1,260 · fechas dd/mm/aaaa · USD 1,234.56
@@ -85,10 +90,22 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 - **`VidaRestante`:** barra de vida de una capa (verde > 30 días, amarillo 15–30, rojo < 15) con `role="meter"`.
 - **`ColaFifo`:** esquema Entrada → capas (de la más nueva a la más antigua) → Salida. Marca la «Próxima en salir» con un anillo y las no despachables con borde punteado.
 
+## Operaciones: cómo se muestra el efecto
+- **`ResultadoOperacion`:** se muestra después de cada operación confirmada y es lo que hace visible el efecto en la demo. Contiene:
+  - lo registrado;
+  - las capas FIFO que salieron (lote, cantidad × costo, vencimiento) en una mini cola hacia la «salida», y el costo total;
+  - el cambio de stock;
+  - el bloque de efecto en alertas: ＋ creadas, − resueltas y ↻ cambios de color, con enlace al artículo.
+
+  Los datos vienen de `capasConsumidas`, `costoTotal` y `efectoAlertas`, que devuelve el backend.
+- **Errores dentro del formulario:** las mutaciones o consultas con `meta: { silencioso: true }` no muestran el aviso global, porque el error se ve en el propio formulario (el faltante de un pedido, devolver de más, la vista previa de recepción o del impacto de un ajuste).
+- **Avisos previos al confirmar:** los calcula siempre el backend (`/operaciones/recepcion/previa` para el vencimiento y AL13; `/ajustes/impacto` para el valor en USD). El navegador no calcula costos.
+- **Sin doble envío:** `BotonPrimario` se desactiva mientras la operación está en curso.
+
 ## Pruebas
 - `npm --prefix frontend test`: Vitest + Testing Library con happy-dom (formateadores, semáforo, control de fecha).
 - `npm --prefix frontend test`: Vitest también cubre los filtros de alertas, el medidor, la barra de posición, la cola FIFO y la vida restante.
-- `npm run test:humo`: Playwright con el Chromium ya instalado en la caché de Playwright (no descarga navegadores).
+- `npm run test:humo`: Playwright con el Chromium ya instalado en la caché de Playwright (no descarga navegadores). `operaciones.spec.ts` recorre la historia completa (casos a–h). Los 400, 403 y 409 esperados (que el navegador registra como errores de red) no cuentan como errores de consola.
   - Levanta backend y frontend si no están corriendo; cada archivo vuelve a sembrar la base.
   - Comprueba el tablero, el Centro de alertas, la ficha, los permisos y que no haya errores en la consola.
   - **No** toca `docs/capturas/`.

@@ -17,7 +17,10 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 | `GET /api/articulos/estado`, `GET /api/articulos/:codigo/resumen` | ✔ solo disponible/agotado | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `GET /api/stock?almacenId=` | ✔ solo disponible/agotado, sin costos | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `GET /api/articulos`, `/articulos/:codigo/capas`, `/articulos/:codigo/kardex`, `/articulos/:codigo/serie`, `/alertas/umbrales/detalle`, `/api/abc`, `/api/movimientos`, `/api/traslados`, `/api/traslados/propuesta`, `/api/ajustes`, `/api/conteos`, `/api/envases/saldos`, `/api/configuracion` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `POST /api/pedidos` (reserva) | ✔ | — | — | — | — | — | — |
+| `POST /api/pedidos` (reserva) | ✔ | — | — | — | ✔ (simula para la demo) | — | — |
+| `GET /api/pedidos/:id`, `GET /api/clientes`, `GET /api/promociones` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `GET /api/traslados/:id`, `/api/ajustes/:id`, `/api/ajustes/impacto`, `/api/envases/saldos/:id`, `/api/capas` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `GET /api/operaciones/recepcion/previa` | — | — | — | ✔¹ | ✔ | — | — |
 | `POST /api/pedidos/:id/cancelar` | ✔ | — | — | ✔¹ | ✔ | — | — |
 | `POST /api/pedidos/:id/despachar` | — | — | — | ✔¹ | ✔ | — | — |
 | `POST /api/operaciones/recepcion` | — | — | — | ✔¹ | ✔ | — | — |
@@ -46,6 +49,16 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 | `POST /api/integracion/eventos/:id/reprocesar` | — | — | — | — | — | — | ✔ |
 
 Notas:
+- **Respuestas de escritura:** todo `POST` y `PUT` responde con `efectoAlertas` (`creadas`, `resueltas` y `cambiadas`, con código, almacén, artículo, color antes y después, y mensaje). Las operaciones que consumen capas agregan `capasConsumidas` y `costoTotal`.
+- **Rechazar un ajuste** exige `comentario`; al aprobar es opcional. Se guarda en `comentarioResolucion`.
+- **Frontend, pantalla Operaciones:**
+  - R01: Pedidos (crear y cancelar);
+  - R02: Promociones (proponer) y Envases (consulta);
+  - R03: Pedidos, Traslados y Promociones, en consulta;
+  - R06: todo lo operativo de su almacén, que queda fijo;
+  - R07: todo;
+  - R08 y R09: solo consulta.
+- **Frontend, pantalla Aprobaciones:** R07 decide y R08 la ve en solo lectura.
 - **Alertas para R06:** `GET /api/alertas` y `/api/alertas/resumen` devuelven solo su almacén (el filtro `almacen` no lo saca de ahí), y `GET /api/alertas/:id` de otro almacén responde 403 `ALMACEN_AJENO`.
 - **Frontend:** el menú y las pantallas siguen esta tabla. R01 entra a Artículos y a la ficha, pero solo ve la disponibilidad. La pestaña Umbrales del Centro de alertas la edita R07, la leen R08 y R09, y la bitácora de umbrales la ven R07 y R09.
 - **R03 Asistente de pedidos (`AST-01`):** consulta (como los roles de lectura) y solo atiende AL11. No registra operaciones.
