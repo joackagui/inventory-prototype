@@ -25,7 +25,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:verificar": "tsx prisma/verificar-integridad.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed && npm run db:verificar",
-    "demo:api": "tsx scripts/demo-api.ts"
+    "demo:api": "tsx scripts/demo-api.ts",
+    "demo:alertas": "tsx scripts/demo-alertas.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
