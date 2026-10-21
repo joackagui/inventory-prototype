@@ -7,9 +7,464 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modelo mínimo para probar la conexión; el resto del esquema llega en las siguientes tareas.
+// Ver docs/MODELO_DATOS.md para el diagrama y la explicación de cada tabla.
+// Reglas: cantidades Int (cajas o packs), dinero Decimal, fechas de operación = fecha simulada (@db.Date).
+
+enum TipoAlmacen {
+  PLANTA
+  TRANSITO
+}
+
+enum ClaseAbc {
+  A
+  B
+  C
+}
+
+enum EstadoCapa {
+  DISPONIBLE
+  CUARENTENA
+  AGOTADA
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  RESERVA
+  LIBERACION_RESERVA
+  TRASLADO_SALIDA
+  TRASLADO_ENTRADA
+  AJUSTE
+  MERMA
+  CONTEO
+  CUARENTENA
+  ENVASE_ENTREGA
+  ENVASE_DEVOLUCION
+  BONIFICACION
+}
+
+enum EstadoPedido {
+  PENDIENTE_REVISION
+  CONFIRMADO
+  DESPACHADO
+  CANCELADO
+}
+
+enum EstadoTraslado {
+  EMITIDA
+  EN_TRANSITO
+  RECIBIDA
+  CON_DIFERENCIA
+}
+
+enum TipoConteo {
+  CICLICO
+  GENERAL
+}
+
+enum MotivoAjuste {
+  ROTURA
+  VENCIMIENTO
+  DIFERENCIA_CONTEO
+  PERDIDA_ROBO
+  ERROR_REGISTRO
+  PROMOCION
+}
+
+enum EstadoAjuste {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum TipoPromocion {
+  DESCUENTO_FESTIVO
+  BONIFICACION
+  LIQUIDACION_VENCIMIENTO
+  ROTACION_EXCESO
+}
+
+enum EstadoPromocion {
+  BORRADOR
+  ACTIVA
+  FINALIZADA
+}
+
+enum ColorAlerta {
+  AMARILLO
+  ROJO
+  AZUL
+}
+
+enum EstadoAlerta {
+  ABIERTA
+  ATENDIDA
+}
+
+// ---------- Maestros ----------
+
 model Almacen {
-  codigo       String @id
+  id                Int         @id @default(autoincrement())
+  codigo            String      @unique
+  nombre            String
+  tipo              TipoAlmacen @default(PLANTA)
+  leadTimeDias      Int         @default(0)
+  // Almacén de tránsito (TR-xx) donde esperan los traslados que vienen hacia este almacén.
+  almacenTransitoId Int?        @unique
+  almacenTransito   Almacen?    @relation("TransitoDeAlmacen", fields: [almacenTransitoId], references: [id])
+  almacenDestino    Almacen?    @relation("TransitoDeAlmacen")
+
+  ubicaciones       Ubicacion[]
+  parametros        ParametroArticuloAlmacen[]
+  capas             CapaFifo[]
+  movimientos       Movimiento[]
+  pedidos           PedidoSimulado[]
+  trasladosOrigen   OrdenTraslado[]            @relation("OrigenTraslado")
+  trasladosDestino  OrdenTraslado[]            @relation("DestinoTraslado")
+  conteos           ConteoFisico[]
+  ajustes           AjusteInventario[]
+  saldosEnvase      SaldoEnvase[]
+  promociones       Promocion[]
+  alertas           Alerta[]
+  usuarios          Usuario[]
+}
+
+model Ubicacion {
+  id          Int     @id @default(autoincrement())
+  almacenId   Int
+  almacen     Almacen @relation(fields: [almacenId], references: [id])
+  codigo      String
+  descripcion String
+  // CUAR-01 y la ubicación del tránsito no son vendibles.
+  vendible    Boolean @default(true)
+
+  capas       CapaFifo[]
+  movimientos Movimiento[]
+  conteos     ConteoFisico[]
+  ajustes     AjusteInventario[]
+
+  @@unique([almacenId, codigo])
+}
+
+model Articulo {
+  id               Int     @id @default(autoincrement())
+  codigo           String  @unique
+  descripcion      String
+  familia          String
+  unidad           String
+  precio           Decimal @db.Decimal(12, 2)
+  vidaUtilDias     Int
+  costoFifoInicial Decimal @db.Decimal(12, 4)
+  esRetornable     Boolean @default(false)
+
+  parametros       ParametroArticuloAlmacen[]
+  capas            CapaFifo[]
+  movimientos      Movimiento[]
+  lineasPedido     LineaPedido[]
+  lineasTraslado   LineaTraslado[]
+  conteos          ConteoFisico[]
+  ajustes          AjusteInventario[]
+  saldosEnvase     SaldoEnvase[]
+  promociones      Promocion[]
+  alertas          Alerta[]
+}
+
+// Entradas (d, σd, clase, Z) + valores calculados con src/inventario/calculos (SS, ROP, Q, Máx).
+model ParametroArticuloAlmacen {
+  id                Int       @id @default(autoincrement())
+  articuloId        Int
+  articulo          Articulo  @relation(fields: [articuloId], references: [id])
+  almacenId         Int
+  almacen           Almacen   @relation(fields: [almacenId], references: [id])
+  demandaDiaria     Int
+  desviacionDemanda Float
+  claseAbc          ClaseAbc
+  nivelServicio     Float
+  z                 Float
+  diasRevision      Int
+  stockSeguridad    Int
+  rop               Int
+  loteTraslado      Int
+  stockMaximo       Int
+  ultimoConteo      DateTime? @db.Date
+
+  @@unique([articuloId, almacenId])
+}
+
+model Rol {
+  codigo      String    @id
+  nombre      String
+  descripcion String
+  usuarios    Usuario[]
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique
+  nombre    String
+  rolCodigo String
+  rol       Rol      @relation(fields: [rolCodigo], references: [codigo])
+  almacenId Int?
+  almacen   Almacen? @relation(fields: [almacenId], references: [id])
+
+  movimientos         Movimiento[]
+  pedidos             PedidoSimulado[]
+  traslados           OrdenTraslado[]
+  conteos             ConteoFisico[]
+  ajustesRegistrados  AjusteInventario[] @relation("AjusteRegistradoPor")
+  ajustesAprobados    AjusteInventario[] @relation("AjusteAprobadoPor")
+  alertasAtendidas    Alerta[]
+  registrosCambio     RegistroCambio[]
+}
+
+model Cliente {
+  id           Int              @id @default(autoincrement())
+  codigo       String           @unique
   nombre       String
-  leadTimeDias Int
+  pedidos      PedidoSimulado[]
+  saldosEnvase SaldoEnvase[]
+}
+
+// ---------- Inventario ----------
+
+model CapaFifo {
+  id               Int        @id @default(autoincrement())
+  articuloId       Int
+  articulo         Articulo   @relation(fields: [articuloId], references: [id])
+  almacenId        Int
+  almacen          Almacen    @relation(fields: [almacenId], references: [id])
+  ubicacionId      Int
+  ubicacion        Ubicacion  @relation(fields: [ubicacionId], references: [id])
+  lote             String
+  fechaEntrada     DateTime   @db.Date
+  fechaElaboracion DateTime   @db.Date
+  fechaVencimiento DateTime   @db.Date
+  cantidadInicial  Int
+  cantidadRestante Int
+  costoUnitario    Decimal    @db.Decimal(12, 4)
+  estado           EstadoCapa @default(DISPONIBLE)
+
+  movimientos      Movimiento[]
+
+  // Orden FIFO: por fechaEntrada y luego id.
+  @@index([articuloId, almacenId, estado, fechaEntrada])
+}
+
+// Libro mayor inmutable: un trigger en la base impide UPDATE y DELETE.
+model Movimiento {
+  id             Int            @id @default(autoincrement())
+  tipo           TipoMovimiento
+  articuloId     Int
+  articulo       Articulo       @relation(fields: [articuloId], references: [id])
+  almacenId      Int
+  almacen        Almacen        @relation(fields: [almacenId], references: [id])
+  ubicacionId    Int
+  ubicacion      Ubicacion      @relation(fields: [ubicacionId], references: [id])
+  capaId         Int?
+  capa           CapaFifo?      @relation(fields: [capaId], references: [id])
+  // Con signo: + entra al almacén, − sale. RESERVA, CONTEO, CUARENTENA y ENVASE_* no cambian el stock físico.
+  cantidad       Int
+  costoUnitario  Decimal        @db.Decimal(12, 4)
+  valor          Decimal        @db.Decimal(14, 2)
+  fechaOperacion DateTime       @db.Date
+  creadoEn       DateTime       @default(now())
+  usuarioId      Int
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id])
+  motivo         String
+  documentoTipo  String?
+  documentoId    Int?
+
+  @@index([articuloId, almacenId, fechaOperacion])
+  @@index([capaId])
+}
+
+model PedidoSimulado {
+  id             Int           @id @default(autoincrement())
+  numero         String        @unique
+  clienteId      Int
+  cliente        Cliente       @relation(fields: [clienteId], references: [id])
+  almacenId      Int
+  almacen        Almacen       @relation(fields: [almacenId], references: [id])
+  estado         EstadoPedido
+  fechaOperacion DateTime      @db.Date
+  creadoEn       DateTime      @default(now())
+  usuarioId      Int
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id])
+  lineas         LineaPedido[]
+
+  @@index([almacenId, estado])
+}
+
+model LineaPedido {
+  id         Int            @id @default(autoincrement())
+  pedidoId   Int
+  pedido     PedidoSimulado @relation(fields: [pedidoId], references: [id])
+  articuloId Int
+  articulo   Articulo       @relation(fields: [articuloId], references: [id])
+  cantidad   Int
+}
+
+model OrdenTraslado {
+  id             Int             @id @default(autoincrement())
+  numero         String          @unique
+  origenId       Int
+  origen         Almacen         @relation("OrigenTraslado", fields: [origenId], references: [id])
+  destinoId      Int
+  destino        Almacen         @relation("DestinoTraslado", fields: [destinoId], references: [id])
+  estado         EstadoTraslado
+  fechaEmision   DateTime        @db.Date
+  fechaDespacho  DateTime?       @db.Date
+  fechaRecepcion DateTime?       @db.Date
+  usuarioId      Int
+  usuario        Usuario         @relation(fields: [usuarioId], references: [id])
+  lineas         LineaTraslado[]
+
+  @@index([estado])
+}
+
+model LineaTraslado {
+  id                 Int           @id @default(autoincrement())
+  ordenId            Int
+  orden              OrdenTraslado @relation(fields: [ordenId], references: [id])
+  articuloId         Int
+  articulo           Articulo      @relation(fields: [articuloId], references: [id])
+  cantidadDespachada Int
+  cantidadRecibida   Int?
+  observacion        String?
+}
+
+model ConteoFisico {
+  id              Int                @id @default(autoincrement())
+  tipo            TipoConteo
+  articuloId      Int
+  articulo        Articulo           @relation(fields: [articuloId], references: [id])
+  almacenId       Int
+  almacen         Almacen            @relation(fields: [almacenId], references: [id])
+  ubicacionId     Int
+  ubicacion       Ubicacion          @relation(fields: [ubicacionId], references: [id])
+  cantidadSistema Int
+  cantidadContada Int
+  diferencia      Int
+  porcentaje      Float
+  usuarioId       Int
+  usuario         Usuario            @relation(fields: [usuarioId], references: [id])
+  fechaOperacion  DateTime           @db.Date
+  creadoEn        DateTime           @default(now())
+  ajustes         AjusteInventario[]
+
+  @@index([articuloId, almacenId, fechaOperacion])
+}
+
+model AjusteInventario {
+  id              Int           @id @default(autoincrement())
+  articuloId      Int
+  articulo        Articulo      @relation(fields: [articuloId], references: [id])
+  almacenId       Int
+  almacen         Almacen       @relation(fields: [almacenId], references: [id])
+  ubicacionId     Int
+  ubicacion       Ubicacion     @relation(fields: [ubicacionId], references: [id])
+  motivo          MotivoAjuste
+  // Con signo: negativo = baja de stock.
+  cantidad        Int
+  observacion     String?
+  estado          EstadoAjuste  @default(PENDIENTE)
+  conteoId        Int?
+  conteo          ConteoFisico? @relation(fields: [conteoId], references: [id])
+  registradoPorId Int
+  registradoPor   Usuario       @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
+  fechaRegistro   DateTime      @db.Date
+  registradoEn    DateTime      @default(now())
+  aprobadoPorId   Int?
+  aprobadoPor     Usuario?      @relation("AjusteAprobadoPor", fields: [aprobadoPorId], references: [id])
+  fechaResolucion DateTime?     @db.Date
+
+  @@index([estado])
+}
+
+model SaldoEnvase {
+  id                Int      @id @default(autoincrement())
+  clienteId         Int
+  cliente           Cliente  @relation(fields: [clienteId], references: [id])
+  articuloId        Int
+  articulo          Articulo @relation(fields: [articuloId], references: [id])
+  almacenId         Int
+  almacen           Almacen  @relation(fields: [almacenId], references: [id])
+  cantidadEntregada Int
+  cantidadDevuelta  Int      @default(0)
+  fechaEntrega      DateTime @db.Date
+
+  @@index([clienteId, articuloId])
+}
+
+// ---------- Comercial (solo datos) ----------
+
+model Promocion {
+  id           Int             @id @default(autoincrement())
+  nombre       String
+  tipo         TipoPromocion
+  articuloId   Int
+  articulo     Articulo        @relation(fields: [articuloId], references: [id])
+  almacenId    Int?
+  almacen      Almacen?        @relation(fields: [almacenId], references: [id])
+  fechaInicio  DateTime        @db.Date
+  fechaFin     DateTime        @db.Date
+  topeCajas    Int
+  cajasUsadas  Int             @default(0)
+  descuentoPct Float?
+  estado       EstadoPromocion
+}
+
+model Fiesta {
+  id                 Int      @id @default(autoincrement())
+  nombre             String
+  fechaInicio        DateTime @db.Date
+  fechaFin           DateTime @db.Date
+  // Días festivos reales (p. ej. 16/07 y 06/08 son 2 días aunque el rango sea más largo).
+  diasFiesta         Int
+  // Códigos de los almacenes de la zona.
+  zonas              String[]
+  factor             Float
+  semanasPreparacion Int
+}
+
+// ---------- Alertas y sistema ----------
+
+model Alerta {
+  id             Int          @id @default(autoincrement())
+  codigo         String
+  color          ColorAlerta
+  almacenId      Int
+  almacen        Almacen      @relation(fields: [almacenId], references: [id])
+  articuloId     Int?
+  articulo       Articulo?    @relation(fields: [articuloId], references: [id])
+  mensaje        String
+  estado         EstadoAlerta @default(ABIERTA)
+  fechaOperacion DateTime     @db.Date
+  creadaEn       DateTime     @default(now())
+  atendidaPorId  Int?
+  atendidaPor    Usuario?     @relation(fields: [atendidaPorId], references: [id])
+  atendidaEn     DateTime?
+  resultado      String?
+
+  @@index([estado, almacenId])
+}
+
+model ConfiguracionSistema {
+  clave         String   @id
+  valor         Json
+  descripcion   String
+  actualizadoEn DateTime @updatedAt
+}
+
+model RegistroCambio {
+  id             Int       @id @default(autoincrement())
+  usuarioId      Int?
+  usuario        Usuario?  @relation(fields: [usuarioId], references: [id])
+  entidad        String
+  entidadId      String
+  campo          String
+  valorAnterior  Json?
+  valorNuevo     Json?
+  fechaOperacion DateTime? @db.Date
+  creadoEn       DateTime  @default(now())
 }
