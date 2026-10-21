@@ -3,7 +3,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SimulacionService } from '../simulacion/simulacion.service.js';
 import { LECTURA, Roles, TODOS, UsuarioActual, type UsuarioSesion } from '../usuarios/autorizacion.js';
-import { clasificarAbc } from './calculos/formulas.js';
+import { combinarUmbrales } from '../alertas/evaluadores.js';
+import { clasificarAbc, NIVEL_SERVICIO } from './calculos/formulas.js';
 import { verificarIntegridad } from './integridad.js';
 import { obtenerStock, resolverAlmacen } from './stock.js';
 import { FiltroMovimientosDto } from './inventario.dto.js';
@@ -42,9 +43,14 @@ export class InventarioController {
       where: { almacen: { codigo: 'CD-LP-01' } },
       include: { articulo: true },
     });
+    const frecuencia = combinarUmbrales(await this.simulacion.valor('umbralesAlertas', null)).AL05.frecuenciaDias;
+    // Clase calculada hoy frente a la guardada (vista previa de «Recalcular»), con su nivel de servicio y frecuencia de conteo.
     return clasificarAbc(
       parametros.map((p) => ({ codigo: p.articulo.codigo, descripcion: p.articulo.descripcion, precio: Number(p.articulo.precio), demandaDiaria: p.demandaDiaria })),
-    );
+    ).map((a) => {
+      const { nivelServicio, z } = NIVEL_SERVICIO[a.clase];
+      return { ...a, claseActual: parametros.find((p) => p.articulo.codigo === a.codigo)!.claseAbc, nivelServicio, z, frecuenciaConteoDias: frecuencia[a.clase] };
+    });
   }
 
   /** Calendario de fiestas. */

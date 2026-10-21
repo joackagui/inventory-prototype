@@ -19,13 +19,25 @@ export class AnalisisController {
   /** Costos del mes por artículo: adquisición, conservación, pedido y agotamiento, con las tasas usadas. */
   @Get('costos')
   costos(@Query() q: CostosDto) {
-    return this.servicio.costos(q.almacenId, q.mes);
+    return this.servicio.costos(q.almacenId, q.mes, q);
   }
 
   /** Preparación de fiestas: ventana, ROP/Q/Máx de fiesta, pronóstico, posición, brecha y estado por artículo. */
   @Get('fiestas/preparacion')
   fiestas(@Query() q: AlmacenOpcionalDto) {
     return this.servicio.preparacionFiestas(q.almacenId);
+  }
+
+  /** Rotación anualizada de los últimos 90 días hábiles, días de inventario y cobertura por artículo. */
+  @Get('analisis/rotacion')
+  rotacion(@Query() q: AlmacenOpcionalDto) {
+    return this.servicio.rotacion(q.almacenId);
+  }
+
+  /** Conteos de los últimos 90 días con diferencia y porcentaje, y la exactitud del inventario. */
+  @Get('analisis/conteos')
+  conteos(@Query() q: AlmacenOpcionalDto) {
+    return this.servicio.conteos(q.almacenId);
   }
 
   /** Pareto de ajustes y mermas aprobados por motivo (valor en USD, % y % acumulado). */

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ErrorNegocio } from '../comun/errores.js';
 import { combinarUmbrales } from '../alertas/evaluadores.js';
+import { cronogramaFiesta } from './cronograma.js';
 import { costoConservacion, pronosticoFiesta, qFiesta, ropFiesta, TIPOS_FISICOS, vidaRestanteDias } from '../inventario/calculos/formulas.js';
 import { obtenerStock, resolverAlmacen } from '../inventario/stock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -11,6 +12,34 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 const dia = (f: Date) => f.toISOString().slice(0, 10);
 const masDias = (f: Date, n: number) => new Date(f.getTime() + n * MS_DIA);
 const VIGENTES = { in: ['ABIERTA', 'ATENDIDA'] as ('ABIERTA' | 'ATENDIDA')[] };
+// Rotación anualizada: alta ≥ 30 vueltas/año (≈ 8 días hábiles de inventario), media ≥ 15, baja por debajo.
+const UMBRAL_ROTACION = { alta: 30, media: 15 };
+
+// Promedio diario del stock (unidades y valor FIFO) entre `inicio` y `inicio + dias − 1`, desde los movimientos físicos ordenados.
+function promedioStock(movs: { cantidad: number; valor: unknown; fechaOperacion: Date }[], inicio: Date, dias: number) {
+  let i = 0;
+  let unidades = 0;
+  let valor = 0;
+  let sumaUnidades = 0;
+  let sumaValor = 0;
+  for (let d = 0; d < dias; d++) {
+    const cierre = masDias(inicio, d);
+    for (; i < movs.length && movs[i].fechaOperacion <= cierre; i++) {
+      unidades += movs[i].cantidad;
+      valor += Number(movs[i].valor);
+    }
+    sumaUnidades += unidades;
+    sumaValor += valor;
+  }
+  return dias ? { unidades: sumaUnidades / dias, valor: sumaValor / dias } : { unidades: 0, valor: 0 };
+}
+
+export interface TasasCostos {
+  tasaConservacionAnual?: number;
+  costoPorTraslado?: number;
+  valorPedidoAgotamiento?: number;
+  margenAgotamiento?: number;
+}
 
 @Injectable()
 export class AnalisisService {
@@ -107,7 +136,8 @@ export class AnalisisService {
   }
 
   // Costos del mes (sección 10, fórmula del documento): adquisición, conservación, pedido y agotamiento por artículo.
-  async costos(almacenParam?: string, mesParam?: string) {
+  // Las tasas opcionales permiten la vista previa de un cambio de parámetros sin guardarlo.
+  async costos(almacenParam?: string, mesParam?: string, tasas: TasasCostos = {}) {
     const plantas = await this.plantas(almacenParam);
     const ids = plantas.map((p) => p.id);
     const fecha = await this.simulacion.fechaOperacion();
@@ -116,10 +146,10 @@ export class AnalisisService {
     const fin = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth() + 1, 1));
     // El stock promedio se mide hasta el último día del mes o hasta la fecha simulada si el mes está en curso.
     const ultimoDia = fecha < masDias(fin, -1) ? fecha : masDias(fin, -1);
-    const tasaConservacionAnual = await this.simulacion.valor('tasaConservacionAnual', 0.15);
-    const costoPorTraslado = await this.simulacion.valor('costoPorTraslado', 180);
-    const valorPedido = await this.simulacion.valor('valorPedidoAgotamiento', 40);
-    const margen = await this.simulacion.valor('margenAgotamiento', 0.3);
+    const tasaConservacionAnual = tasas.tasaConservacionAnual ?? (await this.simulacion.valor('tasaConservacionAnual', 0.15));
+    const costoPorTraslado = tasas.costoPorTraslado ?? (await this.simulacion.valor('costoPorTraslado', 180));
+    const valorPedido = tasas.valorPedidoAgotamiento ?? (await this.simulacion.valor('valorPedidoAgotamiento', 40));
+    const margen = tasas.margenAgotamiento ?? (await this.simulacion.valor('margenAgotamiento', 0.3));
     const costoAgotamientoPorPedido = r2(valorPedido * margen);
 
     const articulos = await this.prisma.articulo.findMany({ orderBy: { codigo: 'asc' } });
@@ -138,24 +168,9 @@ export class AnalisisService {
       for (const a of articulos) {
         const propios = movs.filter((m) => m.almacenId === p.id && m.articuloId === a.id);
         const fila = filas.get(a.id)!;
-        let i = 0;
-        let unidades = 0;
-        let valor = 0;
-        let sumaUnidades = 0;
-        let sumaValor = 0;
-        for (let d = 0; d < dias; d++) {
-          const cierre = masDias(inicio, d);
-          for (; i < propios.length && propios[i].fechaOperacion <= cierre; i++) {
-            unidades += propios[i].cantidad;
-            valor += Number(propios[i].valor);
-          }
-          sumaUnidades += unidades;
-          sumaValor += valor;
-        }
-        if (dias) {
-          fila.stockPromedioUnidades += sumaUnidades / dias;
-          fila.valorStockPromedio += sumaValor / dias;
-        }
+        const promedio = promedioStock(propios, inicio, dias);
+        fila.stockPromedioUnidades += promedio.unidades;
+        fila.valorStockPromedio += promedio.valor;
         for (const m of propios.filter((x) => x.tipo === 'SALIDA' && x.fechaOperacion >= inicio)) {
           fila.unidadesVendidas -= m.cantidad;
           fila.adquisicion -= Number(m.valor);
@@ -232,6 +247,21 @@ export class AnalisisService {
       fiestas: fiestas.map((f) => {
         const diasFaltan = Math.round((f.fechaInicio.getTime() - fecha.getTime()) / MS_DIA);
         const pasada = f.fechaFin < fecha;
+        const almacenes = plantas
+          .filter((p) => f.zonas.includes(p.codigo))
+          .map((p) => ({
+            almacen: p.codigo,
+            articulos: stock.get(p.id)!.map((s) => {
+              const par = parametros.find((x) => x.almacenId === p.id && x.articuloId === s.articuloId)!;
+              const rop = ropFiesta(s.demandaDiaria, f.factor, par.leadTimeDias, par.stockSeguridad);
+              const q = qFiesta(s.demandaDiaria, f.factor);
+              const pronostico = pronosticoFiesta(s.demandaDiaria, f.factor, f.diasFiesta);
+              // Crítico: la posición no cubre ni el pronóstico (AL14); en riesgo: no llega al ROP de fiesta.
+              const estado = s.posicion < pronostico ? 'CRITICO' : s.posicion < rop ? 'EN_RIESGO' : 'OK';
+              return { codigo: s.codigo, descripcion: s.descripcion, demandaBase: s.demandaDiaria, factor: f.factor, leadTimeDias: par.leadTimeDias, stockSeguridad: par.stockSeguridad, diasFiesta: f.diasFiesta, ropFiesta: rop, qFiesta: q, maximoFiesta: rop + q, pronostico, posicion: s.posicion, brecha: pronostico - s.posicion, estado };
+            }),
+          }));
+        const estados = almacenes.flatMap((a) => a.articulos.map((x) => x.estado));
         return {
           id: f.id,
           nombre: f.nombre,
@@ -244,22 +274,83 @@ export class AnalisisService {
           diasFaltan,
           pasada,
           enVentanaPreparacion: !pasada && diasFaltan <= f.semanasPreparacion * 7,
-          almacenes: plantas
-            .filter((p) => f.zonas.includes(p.codigo))
-            .map((p) => ({
-              almacen: p.codigo,
-              articulos: stock.get(p.id)!.map((s) => {
-                const par = parametros.find((x) => x.almacenId === p.id && x.articuloId === s.articuloId)!;
-                const rop = ropFiesta(s.demandaDiaria, f.factor, par.leadTimeDias, par.stockSeguridad);
-                const q = qFiesta(s.demandaDiaria, f.factor);
-                const pronostico = pronosticoFiesta(s.demandaDiaria, f.factor, f.diasFiesta);
-                // Crítico: la posición no cubre ni el pronóstico (AL14); en riesgo: no llega al ROP de fiesta.
-                const estado = s.posicion < pronostico ? 'CRITICO' : s.posicion < rop ? 'EN_RIESGO' : 'OK';
-                return { codigo: s.codigo, descripcion: s.descripcion, demandaBase: s.demandaDiaria, ropFiesta: rop, qFiesta: q, maximoFiesta: rop + q, pronostico, posicion: s.posicion, brecha: pronostico - s.posicion, estado };
-              }),
-            })),
+          ventanaDesde: dia(masDias(f.fechaInicio, -f.semanasPreparacion * 7)),
+          // Estado de la fiesta: el peor de sus artículos en los almacenes de la zona.
+          estado: pasada ? 'PASADA' : estados.includes('CRITICO') ? 'CRITICO' : estados.includes('EN_RIESGO') ? 'EN_RIESGO' : 'OK',
+          // Promoción festiva sugerida: desde dos semanas antes hasta el último día de la fiesta.
+          promocionSugerida: { tipo: 'DESCUENTO_FESTIVO', desde: dia(masDias(f.fechaInicio, -14)), hasta: dia(f.fechaFin) },
+          cronograma: cronogramaFiesta(f, fecha),
+          almacenes,
         };
       }),
+    };
+  }
+
+  // Rotación de los últimos 90 días hábiles cerrados: costo de lo vendido × (252 ÷ 90) ÷ valor del stock promedio.
+  async rotacion(almacenParam?: string) {
+    const plantas = await this.plantas(almacenParam);
+    const ids = plantas.map((p) => p.id);
+    const fecha = await this.simulacion.fechaOperacion();
+    const diasMinimos = await this.simulacion.diasMinimosDespacho();
+    const habiles: Date[] = [];
+    for (let f = masDias(fecha, -1); habiles.length < 90; f = masDias(f, -1)) if (f.getUTCDay() % 6 !== 0) habiles.unshift(f);
+    const inicio = habiles[0];
+    const diasCalendario = Math.round((fecha.getTime() - inicio.getTime()) / MS_DIA);
+    const movs = await this.prisma.movimiento.findMany({
+      where: { almacenId: { in: ids }, tipo: { in: [...TIPOS_FISICOS] }, fechaOperacion: { lt: fecha } },
+      select: { articuloId: true, almacenId: true, tipo: true, cantidad: true, valor: true, fechaOperacion: true },
+      orderBy: [{ fechaOperacion: 'asc' }, { id: 'asc' }],
+    });
+    const stocks: (Awaited<ReturnType<typeof obtenerStock>>[number] & { almacenId: number })[] = [];
+    for (const p of plantas) stocks.push(...(await obtenerStock(this.prisma, p.id, fecha, diasMinimos)).map((s) => ({ ...s, almacenId: p.id })));
+    const articulos = await this.prisma.articulo.findMany({ orderBy: { codigo: 'asc' } });
+    return {
+      almacen: almacenParam ? plantas[0].codigo : null,
+      desde: dia(inicio),
+      hasta: dia(masDias(fecha, -1)),
+      umbrales: UMBRAL_ROTACION,
+      articulos: articulos.map((a) => {
+        let costoVendido = 0;
+        let valorPromedio = 0;
+        for (const p of plantas) {
+          const propios = movs.filter((m) => m.almacenId === p.id && m.articuloId === a.id);
+          valorPromedio += promedioStock(propios, inicio, diasCalendario).valor;
+          costoVendido -= propios.filter((m) => m.tipo === 'SALIDA' && m.fechaOperacion >= inicio).reduce((s, m) => s + Number(m.valor), 0);
+        }
+        const propiosStock = stocks.filter((s) => s.articuloId === a.id);
+        const disponible = propiosStock.reduce((s, x) => s + Math.max(0, x.disponible), 0);
+        const d = propiosStock.reduce((s, x) => s + x.demandaDiaria, 0);
+        const rotacion = valorPromedio ? r2((costoVendido * (252 / 90)) / valorPromedio) : null;
+        return {
+          codigo: a.codigo,
+          descripcion: a.descripcion,
+          costoVendido90: r2(costoVendido),
+          valorStockPromedio: r2(valorPromedio),
+          rotacionAnual: rotacion,
+          // Días hábiles que dura el inventario promedio al ritmo de venta del período.
+          diasInventario: costoVendido ? Math.round((valorPromedio / (costoVendido / 90)) * 10) / 10 : null,
+          coberturaDias: d ? Math.round((disponible / d) * 10) / 10 : 0,
+          nivel: rotacion === null ? 'SIN_DATOS' : rotacion >= UMBRAL_ROTACION.alta ? 'ALTA' : rotacion >= UMBRAL_ROTACION.media ? 'MEDIA' : 'BAJA',
+        };
+      }),
+    };
+  }
+
+  // Conteos de los últimos 90 días simulados con su diferencia, y la exactitud del inventario.
+  async conteos(almacenParam?: string) {
+    const plantas = await this.plantas(almacenParam);
+    const fecha = await this.simulacion.fechaOperacion();
+    const tolerancia = await this.simulacion.valor('toleranciaConteoPct', 0.5);
+    const conteos = await this.prisma.conteoFisico.findMany({
+      where: { almacenId: { in: plantas.map((p) => p.id) }, fechaOperacion: { gt: masDias(fecha, -90), lte: fecha } },
+      include: { articulo: { select: { codigo: true } }, almacen: { select: { codigo: true } }, ubicacion: { select: { codigo: true } }, usuario: { select: { codigo: true } } },
+      orderBy: [{ fechaOperacion: 'desc' }, { id: 'desc' }],
+    });
+    const sinDiferencia = conteos.filter((c) => c.diferencia === 0).length;
+    return {
+      toleranciaPct: tolerancia,
+      exactitud: { porcentaje: conteos.length ? Math.round((sinDiferencia / conteos.length) * 1000) / 10 : null, conteos: conteos.length, sinDiferencia },
+      conteos: conteos.map((c) => ({ id: c.id, fecha: dia(c.fechaOperacion), tipo: c.tipo, articulo: c.articulo.codigo, almacen: c.almacen.codigo, ubicacion: c.ubicacion.codigo, usuario: c.usuario.codigo, sistema: c.cantidadSistema, contado: c.cantidadContada, diferencia: c.diferencia, porcentaje: c.porcentaje, superaTolerancia: c.porcentaje > tolerancia })),
     };
   }
 
