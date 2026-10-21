@@ -1,0 +1,13 @@
+{
+  "name": "inventario-cbn",
+  "private": true,
+  "description": "Prototipo del sistema de inventarios del ERP de CBN",
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "backend:dev": "npm --prefix backend run start:dev",
+    "frontend:dev": "npm --prefix frontend run dev"
+  }
+}
