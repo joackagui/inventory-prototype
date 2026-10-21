@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { nombreAlmacen } from '../../api/consultas'
+import { useNombreAlmacen } from '../../api/consultas'
 import type { FilaSemaforo, Semaforo as DatosSemaforo } from '../../api/tipos'
 import { EstadoVacio } from '../../componentes/Estados'
 import { SEMAFORO, Semaforo } from '../../componentes/Semaforo'
@@ -9,6 +9,7 @@ import { numero } from '../../utils/formato'
 const FONDO = { VERDE: 'border-l-verde', AMARILLO: 'border-l-amarillo', ROJO: 'border-l-rojo', AZUL: 'border-l-azul' } as const
 
 export function MatrizSemaforo({ semaforos, cargando, onSeleccionar }: { semaforos: (DatosSemaforo | undefined)[]; cargando: boolean; onSeleccionar: (almacen: string, fila: FilaSemaforo) => void }) {
+  const nombreAlmacen = useNombreAlmacen()
   if (cargando) return <Esqueleto className="h-96" />
   const columnas = semaforos.filter((s): s is DatosSemaforo => !!s)
   if (!columnas.length) return <EstadoVacio titulo="Sin datos de semáforo" />

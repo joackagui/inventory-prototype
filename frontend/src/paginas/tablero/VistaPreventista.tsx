@@ -1,13 +1,14 @@
 import clsx from 'clsx'
 import { CircleCheck, CircleX } from 'lucide-react'
-import { ALMACENES, useStockPreventista } from '../../api/consultas'
+import { useAlmacenes, useStockPreventista } from '../../api/consultas'
 import { EstadoError } from '../../componentes/Estados'
 import { Esqueleto, Tarjeta } from '../../componentes/Tarjeta'
 import { numero } from '../../utils/formato'
 
 // Vista del preventista (R01): solo disponible o agotado por almacén, sin costos ni alertas.
 export function VistaPreventista() {
-  const consultas = useStockPreventista(true)
+  const { data: almacenes = [] } = useAlmacenes()
+  const consultas = useStockPreventista(almacenes.map((a) => a.codigo))
   const error = consultas.find((c) => c.isError)
   return (
     <div className="space-y-6" data-testid="vista-preventista">
@@ -18,7 +19,7 @@ export function VistaPreventista() {
       <Tarjeta>
         {error ? (
           <EstadoError error={error.error} reintentar={() => consultas.forEach((c) => c.refetch())} />
-        ) : consultas.some((c) => c.isPending) ? (
+        ) : !consultas.length || consultas.some((c) => c.isPending) ? (
           <Esqueleto className="h-80" />
         ) : (
           <table className="w-full text-left">
@@ -28,7 +29,7 @@ export function VistaPreventista() {
                 <th scope="col" className="pb-3">
                   Artículo
                 </th>
-                {ALMACENES.map((a) => (
+                {almacenes.map((a) => (
                   <th key={a.codigo} scope="col" className="pb-3">
                     {a.nombre}
                   </th>
@@ -47,7 +48,7 @@ export function VistaPreventista() {
                     const hay = fila.estado === 'DISPONIBLE'
                     const Icono = hay ? CircleCheck : CircleX
                     return (
-                      <td key={ALMACENES[i].codigo} className="py-3">
+                      <td key={almacenes[i].codigo} className="py-3">
                         <span className={clsx('inline-flex items-center gap-2 rounded-full px-3 py-1 font-semibold', hay ? 'bg-verde-fondo text-verde' : 'bg-rojo-fondo text-rojo')}>
                           <Icono aria-hidden className="size-4" />
                           {hay ? 'Disponible' : 'Agotado'}

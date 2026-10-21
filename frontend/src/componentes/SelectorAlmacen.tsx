@@ -1,17 +1,14 @@
 import clsx from 'clsx'
-import { ALMACENES } from '../api/consultas'
-import { type FiltroAlmacen, useSesion } from '../sesion/Sesion'
-
-const OPCIONES: { valor: FiltroAlmacen; texto: string; titulo: string }[] = [
-  { valor: 'TODOS', texto: 'Todos', titulo: 'Los 3 almacenes' },
-  ...ALMACENES.map((a) => ({ valor: a.codigo, texto: a.corto, titulo: `${a.codigo} · ${a.nombre}` })),
-]
+import { useAlmacenes } from '../api/consultas'
+import { useSesion } from '../sesion/Sesion'
 
 export function SelectorAlmacen() {
   const { almacen, fijarAlmacen } = useSesion()
+  const { data: almacenes } = useAlmacenes()
+  const opciones = [{ valor: 'TODOS', texto: 'Todos', titulo: 'Los 3 almacenes' }, ...(almacenes ?? []).map((a) => ({ valor: a.codigo, texto: a.corto, titulo: `${a.codigo} · ${a.nombreLargo}` }))]
   return (
     <div role="radiogroup" aria-label="Almacén" className="inline-flex rounded-xl border border-borde bg-superficie-2 p-1">
-      {OPCIONES.map((o) => (
+      {opciones.map((o) => (
         <button
           key={o.valor}
           type="button"

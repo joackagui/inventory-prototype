@@ -2,7 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { nombreAlmacen } from '../../api/consultas'
+import { useNombreAlmacen } from '../../api/consultas'
 import type { Alerta, Pagina } from '../../api/tipos'
 import { EstadoError, EstadoVacio } from '../../componentes/Estados'
 import { Semaforo } from '../../componentes/Semaforo'
@@ -10,6 +10,7 @@ import { Esqueleto } from '../../componentes/Tarjeta'
 import { antiguedad } from '../../utils/formato'
 
 export function AlertasAccion({ consulta }: { consulta: UseQueryResult<Pagina<Alerta>> }) {
+  const nombreAlmacen = useNombreAlmacen()
   if (consulta.isPending) return <Esqueleto className="h-96" />
   if (consulta.isError) return <EstadoError error={consulta.error} reintentar={() => consulta.refetch()} />
   const alertas = consulta.data.datos

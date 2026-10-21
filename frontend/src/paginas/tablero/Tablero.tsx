@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ALMACENES, nombreAlmacen, useAlertasAccion, useFecha, useSemaforos, useTablero, useUsuarioActual } from '../../api/consultas'
+import { useAlertasAccion, useAlmacenes, useFecha, useNombreAlmacen, useSemaforos, useTablero, useUsuarioActual } from '../../api/consultas'
 import type { FilaSemaforo } from '../../api/tipos'
 import { EstadoError } from '../../componentes/Estados'
 import { Esqueleto, Tarjeta } from '../../componentes/Tarjeta'
@@ -24,7 +24,9 @@ function TableroCompleto() {
   const { almacen } = useSesion()
   const { data: fecha } = useFecha()
   const resumen = useTablero(almacen)
-  const columnas = almacen === 'TODOS' ? ALMACENES.map((a) => a.codigo) : [almacen]
+  const { data: almacenes = [] } = useAlmacenes()
+  const nombreAlmacen = useNombreAlmacen()
+  const columnas = almacen === 'TODOS' ? almacenes.map((a) => a.codigo) : [almacen]
   const semaforos = useSemaforos(columnas)
   const alertas = useAlertasAccion(almacen)
   const [seleccion, setSeleccion] = useState<{ almacen: string; fila: FilaSemaforo } | null>(null)
@@ -82,7 +84,7 @@ function TableroCompleto() {
           acciones={
             almacen === 'TODOS' && (
               <div role="radiogroup" aria-label="Almacén del gráfico" className="inline-flex rounded-lg border border-borde p-0.5">
-                {ALMACENES.map((x) => (
+                {almacenes.map((x) => (
                   <button key={x.codigo} role="radio" aria-checked={almacenGrafico === x.codigo} onClick={() => setAlmacenGrafico(x.codigo)} className={`rounded-md px-2.5 py-1 text-sm font-semibold ${almacenGrafico === x.codigo ? 'bg-acento-suave text-acento' : 'text-suave'}`}>
                     {x.corto}
                   </button>

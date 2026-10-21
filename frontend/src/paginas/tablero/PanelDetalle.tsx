@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { nombreAlmacen, useAlertasCelda } from '../../api/consultas'
+import { useAlertasCelda, useNombreAlmacen } from '../../api/consultas'
 import type { FilaSemaforo } from '../../api/tipos'
 import { EstadoVacio } from '../../componentes/Estados'
 import { PanelLateral } from '../../componentes/PanelLateral'
@@ -10,6 +10,7 @@ import { antiguedad, numero } from '../../utils/formato'
 
 export function PanelDetalle({ seleccion, onCerrar }: { seleccion: { almacen: string; fila: FilaSemaforo } | null; onCerrar: () => void }) {
   const navegar = useNavigate()
+  const nombreAlmacen = useNombreAlmacen()
   const alertas = useAlertasCelda(seleccion?.almacen ?? '', seleccion?.fila.codigo ?? '', !!seleccion)
   if (!seleccion) return null
   const { fila, almacen } = seleccion

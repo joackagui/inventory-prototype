@@ -1,7 +1,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { fijarUsuarioApi } from '../api/cliente'
 
-export type FiltroAlmacen = 'TODOS' | 'CD-LP-01' | 'CD-CB-01' | 'CD-SC-01'
+// 'TODOS' o el código de una planta (los códigos vienen de GET /api/almacenes).
+export type FiltroAlmacen = string
 export type Tema = 'claro' | 'oscuro'
 
 interface ValorSesion {

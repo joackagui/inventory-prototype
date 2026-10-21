@@ -16,7 +16,7 @@ export interface Seccion {
 export const SECCIONES: Seccion[] = [
   { ruta: '/tablero', titulo: 'Tablero', descripcion: 'Torre de control del inventario', icono: LayoutDashboard, roles: TODOS },
   { ruta: '/alertas', titulo: 'Alertas', descripcion: 'Centro de alertas: filtrar, atender y seguir el semáforo AL01–AL16', icono: Bell, roles: LECTURA },
-  { ruta: '/articulos', titulo: 'Artículos', descripcion: 'Ficha del artículo: parámetros, capas FIFO, kardex valorado y movimiento', icono: Boxes, roles: LECTURA },
+  { ruta: '/articulos', titulo: 'Artículos', descripcion: 'Ficha del artículo: parámetros, capas FIFO, kardex valorado y movimiento', icono: Boxes, roles: TODOS },
   { ruta: '/operaciones', titulo: 'Operaciones', descripcion: 'Recepción, pedido y despacho, traslados, conteos, ajustes, cuarentena y envases', icono: Truck, roles: ['R01', 'R06', 'R07'] },
   { ruta: '/aprobaciones', titulo: 'Aprobaciones', descripcion: 'Ajustes, mermas, diferencias de recepción y promociones pendientes', icono: ClipboardCheck, roles: ['R07'] },
   { ruta: '/analisis', titulo: 'Análisis', descripcion: 'Análisis ABC / Pareto y ranking de ajustes por motivo', icono: PieChart, roles: LECTURA },

@@ -1,9 +1,10 @@
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { nombreAlmacen } from '../../api/consultas'
+import { useNombreAlmacen } from '../../api/consultas'
 import type { ResumenTablero } from '../../api/tipos'
 import { compacto, dinero } from '../../utils/formato'
 
 export function GraficoValor({ datos }: { datos: ResumenTablero['valorPorAlmacen'] }) {
+  const nombreAlmacen = useNombreAlmacen()
   return (
     <div className="h-44" role="img" aria-label={datos.map((d) => `${d.nombre}: ${dinero(d.valor)}`).join(', ')}>
       <ResponsiveContainer width="100%" height="100%">
