@@ -5,9 +5,9 @@ import type { EstadoAjuste, MotivoAjuste, TipoMovimiento } from '../../generated
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SimulacionService } from '../../simulacion/simulacion.service.js';
 import { exigirAlmacen, type UsuarioSesion } from '../../usuarios/autorizacion.js';
-import { almacenPlanta, articuloPorCodigo, bloquear, consumir, copiarCapa, type DatosMovimiento, emitirCambio, masDias, type Par, registrar, saldo, type Tx, ubicacionPicking } from '../motor.js';
+import { almacenPlanta, articuloPorCodigo, bloquear, consumir, copiarCapa, type DatosMovimiento, emitirCambio, masDias, type Par, type Pieza, registrar, resumenConsumo, saldo, type Tx, ubicacionPicking, valorarAjuste } from '../motor.js';
 import { TX } from './comun.js';
-import type { AjusteDto } from './ajustes.dto.js';
+import type { AjusteDto, ImpactoAjusteDto } from './ajustes.dto.js';
 
 // Rotura, vencimiento y robo son mermas; la promoción es bonificación; el resto, ajuste.
 const TIPO_POR_MOTIVO: Record<MotivoAjuste, TipoMovimiento> = {
@@ -21,8 +21,11 @@ const TIPO_POR_MOTIVO: Record<MotivoAjuste, TipoMovimiento> = {
 };
 
 const detalle = {
-  articulo: { select: { codigo: true } },
-  almacen: { select: { codigo: true } },
+  articulo: { select: { codigo: true, descripcion: true } },
+  almacen: { select: { codigo: true, tipo: true } },
+  capa: { select: { lote: true, fechaVencimiento: true, estado: true } },
+  ordenTraslado: { select: { id: true, numero: true } },
+  conteo: { select: { id: true, cantidadSistema: true, cantidadContada: true, porcentaje: true } },
   registradoPor: { select: { codigo: true } },
   aprobadoPor: { select: { codigo: true } },
 } as const;
@@ -58,7 +61,7 @@ export class AjustesService {
   }
 
   // Aprobación (R07, distinto de quien registró). Baja: consume la capa indicada o FIFO. Alta: capa nueva al costo de la última capa.
-  async aprobar(id: number, u: UsuarioSesion) {
+  async aprobar(id: number, u: UsuarioSesion, comentario?: string) {
     const fecha = await this.simulacion.fechaOperacion();
     const r = await this.prisma.$transaction(async (tx) => {
       const ajuste = await this.pendiente(tx, id, u);
@@ -69,9 +72,11 @@ export class AjustesService {
       const tipo = TIPO_POR_MOTIVO[ajuste.motivo];
       const base = { tipo, ...par, fechaOperacion: fecha, usuarioId: u.id, motivo: `${ajuste.motivo.replaceAll('_', ' ').toLowerCase()} (ajuste ${id})`, documentoTipo: 'AjusteInventario', documentoId: id };
       const movs: DatosMovimiento[] = [];
+      const consumidas: Pieza[] = [];
       if (ajuste.cantidad < 0) {
         // DIFERENCIA_RECEPCION: sale del tránsito de su traslado como pérdida, al costo FIFO de su capa.
         for (const p of await consumir(tx, { ...par, cantidad: -ajuste.cantidad, capaId: ajuste.capaId ?? undefined, ordenTrasladoId: ajuste.ordenTrasladoId ?? undefined })) {
+          consumidas.push(p);
           movs.push({ ...base, ubicacionId: p.capa.ubicacionId, capaId: p.capa.id, cantidad: -p.cantidad, costoUnitario: p.capa.costoUnitario });
         }
         const s = await saldo(tx, par, fecha, 0);
@@ -97,14 +102,14 @@ export class AjustesService {
         movs.push({ ...base, ubicacionId, capaId: capa.id, cantidad: ajuste.cantidad, costoUnitario: costo });
       }
       await registrar(tx, movs);
-      const aprobado = await tx.ajusteInventario.update({ where: { id }, data: { estado: 'APROBADO', aprobadoPorId: u.id, fechaResolucion: fecha }, include: detalle });
-      return { aprobado, par: candado, movs };
+      const aprobado = await tx.ajusteInventario.update({ where: { id }, data: { estado: 'APROBADO', aprobadoPorId: u.id, fechaResolucion: fecha, comentarioResolucion: comentario }, include: detalle });
+      return { aprobado, par: candado, movs, consumidas };
     }, TX);
     await emitirCambio(this.eventos, [r.par], 'ajuste_aprobado');
-    return { ...r.aprobado, valor: Math.round(r.movs.reduce((s, m) => s + m.cantidad * Number(m.costoUnitario), 0) * 100) / 100 };
+    return { ...r.aprobado, valor: Math.round(r.movs.reduce((s, m) => s + m.cantidad * Number(m.costoUnitario), 0) * 100) / 100, ...resumenConsumo(r.consumidas) };
   }
 
-  async rechazar(id: number, u: UsuarioSesion) {
+  async rechazar(id: number, u: UsuarioSesion, comentario: string) {
     const fecha = await this.simulacion.fechaOperacion();
     const r = await this.prisma.$transaction(async (tx) => {
       const ajuste = await this.pendiente(tx, id, u);
@@ -124,14 +129,49 @@ export class AjustesService {
         }
         await registrar(tx, movs);
       }
-      return tx.ajusteInventario.update({ where: { id }, data: { estado: 'RECHAZADO', aprobadoPorId: u.id, fechaResolucion: fecha }, include: detalle });
+      return tx.ajusteInventario.update({ where: { id }, data: { estado: 'RECHAZADO', aprobadoPorId: u.id, fechaResolucion: fecha, comentarioResolucion: comentario }, include: detalle });
     }, TX);
     await emitirCambio(this.eventos, [r], 'ajuste_rechazado');
     return r;
   }
 
-  listar(estado?: EstadoAjuste) {
-    return this.prisma.ajusteInventario.findMany({ where: { estado }, include: detalle, orderBy: { id: 'desc' } });
+  // Con antigüedad (fecha simulada) e impacto en USD: lo que costaría aplicarlo hoy.
+  async listar(estado?: EstadoAjuste) {
+    const fecha = await this.simulacion.fechaOperacion();
+    const ajustes = await this.prisma.ajusteInventario.findMany({ where: { estado }, include: detalle, orderBy: { id: 'desc' } });
+    const filas = [];
+    for (const a of ajustes) filas.push({ ...a, antiguedadDias: Math.round((fecha.getTime() - a.fechaRegistro.getTime()) / 86_400_000), impacto: await valorarAjuste(this.prisma, a) });
+    return filas;
+  }
+
+  async detalle(id: number) {
+    const [a] = (await this.listar()).filter((x) => x.id === id);
+    if (!a) throw noEncontrado(`El ajuste ${id}`);
+    const movimientos = await this.prisma.movimiento.findMany({
+      where: { documentoTipo: 'AjusteInventario', documentoId: id },
+      include: { capa: { select: { lote: true } }, usuario: { select: { codigo: true } } },
+      orderBy: { id: 'asc' },
+    });
+    // Alertas del ajuste (AL07), de su conteo (AL06) o de su traslado (AL09).
+    const alertas = await this.prisma.alerta.findMany({
+      where: {
+        OR: [
+          { referenciaTipo: 'AjusteInventario', referenciaId: id },
+          ...(a.conteoId ? [{ referenciaTipo: 'ConteoFisico', referenciaId: a.conteoId }] : []),
+          ...(a.ordenTrasladoId ? [{ referenciaTipo: 'OrdenTraslado', referenciaId: a.ordenTrasladoId }] : []),
+        ],
+      },
+      select: { id: true, codigo: true, color: true, estado: true, mensaje: true },
+      orderBy: { id: 'asc' },
+    });
+    return { ...a, movimientos, alertas };
+  }
+
+  // Vista previa del impacto en USD de un ajuste aún no registrado.
+  async impacto(dto: ImpactoAjusteDto) {
+    const almacen = await almacenPlanta(this.prisma, dto.almacen);
+    const articulo = await articuloPorCodigo(this.prisma, dto.articulo);
+    return valorarAjuste(this.prisma, { articuloId: articulo.id, almacenId: almacen.id, cantidad: dto.cantidad, capaId: dto.capaId });
   }
 
   private async pendiente(tx: Tx, id: number, u: UsuarioSesion) {

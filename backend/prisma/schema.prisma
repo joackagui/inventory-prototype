@@ -400,33 +400,35 @@ model ConteoFisico {
 }
 
 model AjusteInventario {
-  id              Int            @id @default(autoincrement())
-  articuloId      Int
-  articulo        Articulo       @relation(fields: [articuloId], references: [id])
-  almacenId       Int
-  almacen         Almacen        @relation(fields: [almacenId], references: [id])
-  ubicacionId     Int
-  ubicacion       Ubicacion      @relation(fields: [ubicacionId], references: [id])
-  motivo          MotivoAjuste
+  id                   Int            @id @default(autoincrement())
+  articuloId           Int
+  articulo             Articulo       @relation(fields: [articuloId], references: [id])
+  almacenId            Int
+  almacen              Almacen        @relation(fields: [almacenId], references: [id])
+  ubicacionId          Int
+  ubicacion            Ubicacion      @relation(fields: [ubicacionId], references: [id])
+  motivo               MotivoAjuste
   // Con signo: negativo = baja de stock.
-  cantidad        Int
-  observacion     String?
-  estado          EstadoAjuste   @default(PENDIENTE)
-  conteoId        Int?
-  conteo          ConteoFisico?  @relation(fields: [conteoId], references: [id])
+  cantidad             Int
+  observacion          String?
+  estado               EstadoAjuste   @default(PENDIENTE)
+  conteoId             Int?
+  conteo               ConteoFisico?  @relation(fields: [conteoId], references: [id])
   // Capa afectada (opcional): si no se indica, una baja consume FIFO.
-  capaId          Int?
-  capa            CapaFifo?      @relation(fields: [capaId], references: [id])
+  capaId               Int?
+  capa                 CapaFifo?      @relation(fields: [capaId], references: [id])
   // DIFERENCIA_RECEPCION: traslado cuya diferencia sigue en el tránsito.
-  ordenTrasladoId Int?
-  ordenTraslado   OrdenTraslado? @relation(fields: [ordenTrasladoId], references: [id])
-  registradoPorId Int
-  registradoPor   Usuario        @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
-  fechaRegistro   DateTime       @db.Date
-  registradoEn    DateTime       @default(now())
-  aprobadoPorId   Int?
-  aprobadoPor     Usuario?       @relation("AjusteAprobadoPor", fields: [aprobadoPorId], references: [id])
-  fechaResolucion DateTime?      @db.Date
+  ordenTrasladoId      Int?
+  ordenTraslado        OrdenTraslado? @relation(fields: [ordenTrasladoId], references: [id])
+  registradoPorId      Int
+  registradoPor        Usuario        @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
+  fechaRegistro        DateTime       @db.Date
+  registradoEn         DateTime       @default(now())
+  aprobadoPorId        Int?
+  aprobadoPor          Usuario?       @relation("AjusteAprobadoPor", fields: [aprobadoPorId], references: [id])
+  // Comentario de R07 al aprobar o rechazar (obligatorio al rechazar).
+  comentarioResolucion String?
+  fechaResolucion      DateTime?      @db.Date
 
   @@index([estado])
 }
