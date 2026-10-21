@@ -5,6 +5,7 @@ import { EfectoAlertasInterceptor } from './alertas/efecto.js';
 import { AlertasModule } from './alertas/alertas.module.js';
 import { AlmacenesModule } from './almacenes/almacenes.module.js';
 import { AnalisisModule } from './analisis/analisis.module.js';
+import { DemoModule } from './demo/demo.module.js';
 import { ArticulosModule } from './articulos/articulos.module.js';
 import { InventarioModule } from './inventario/inventario.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -23,6 +24,7 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     InventarioModule,
     AlertasModule,
     AnalisisModule,
+    DemoModule,
     ArticulosModule,
     AlmacenesModule,
     UsuariosModule,
