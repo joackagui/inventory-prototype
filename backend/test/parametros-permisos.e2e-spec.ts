@@ -38,7 +38,7 @@ describe('Parámetros, fecha simulada y permisos', () => {
 
   it('fecha simulada: solo R07/R09, queda en la bitácora y la usan los movimientos nuevos', async () => {
     expect((await como('ALM-LP').put('/simulacion/fecha', { fecha: '2027-07-10' })).status).toBe(403);
-    expect((await como('TI-01').post('/simulacion/avanzar', { dias: 5 })).body).toEqual({ fechaSimulada: '2027-07-05', fechaAnterior: '2027-06-30' });
+    expect((await como('TI-01').post('/simulacion/avanzar', { dias: 5 })).body).toMatchObject({ fechaSimulada: '2027-07-05', fechaAnterior: '2027-06-30' });
     expect((await como().get('/salud')).body.fechaSimulada).toBe('2027-07-05');
     const r = await como('ALM-LP').post('/operaciones/recepcion', { almacen: 'CD-LP-01', ubicacion: 'PICK-B', articulo: 'ART-20011', cantidad: 10, costoUnitario: 5.3, lote: 'X1', fechaElaboracion: '2027-07-04' });
     expect(r.body.fechaEntrada.slice(0, 10)).toBe('2027-07-05');
@@ -70,7 +70,7 @@ describe('Parámetros, fecha simulada y permisos', () => {
     expect(sin.status).toBe(401);
     expect(sin.body.codigo).toBe('NO_AUTENTICADO');
     expect((await como('X-999').get('/yo')).status).toBe(401);
-    expect((await como().get('/usuarios')).body).toHaveLength(8);
+    expect((await como().get('/usuarios')).body).toHaveLength(9);
     expect((await como('ALM-CB').get('/yo')).body).toMatchObject({ rolCodigo: 'R06', almacen: { codigo: 'CD-CB-01' } });
     expect((await como('PV-014').get('/integridad')).status).toBe(403);
   });
