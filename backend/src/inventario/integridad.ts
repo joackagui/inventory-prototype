@@ -23,6 +23,17 @@ export async function verificarIntegridad(prisma: PrismaClient, fechaOperacion: 
     if (movs !== c.cantidadRestante) errores.push(`${id}: Σ movimientos ${movs} ≠ restante ${c.cantidadRestante}`);
   }
 
+  // Un lote identifica una sola producción: mismo lote ⇒ mismo costo, elaboración y vencimiento.
+  const porLote = new Map<string, (typeof capas)[number]>();
+  for (const c of capas) {
+    const clave = `${c.articuloId}/${c.lote}`;
+    const otra = porLote.get(clave);
+    if (!otra) porLote.set(clave, c);
+    else if (Number(otra.costoUnitario) !== Number(c.costoUnitario) || otra.fechaVencimiento.getTime() !== c.fechaVencimiento.getTime()) {
+      errores.push(`lote ${c.lote} (${c.articulo.codigo}): capas ${otra.id} y ${c.id} con costo o vencimiento distintos`);
+    }
+  }
+
   // Por artículo y almacén: Σ capas = Σ movimientos físicos = disponible + reservado + cuarentena.
   let combinaciones = 0;
   for (const a of almacenes) {

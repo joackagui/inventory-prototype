@@ -62,7 +62,8 @@ export class TrasladosService {
       if (origen.id === destino.id) throw new ErrorNegocio(400, 'TRASLADO_INVALIDO', 'El origen y el destino deben ser distintos');
       const codigos = dto.lineas.map((l) => l.articulo);
       if (new Set(codigos).size !== codigos.length) throw new ErrorNegocio(400, 'TRASLADO_INVALIDO', 'Cada artículo debe aparecer una sola vez');
-      const lineas = await Promise.all(dto.lineas.map(async (l) => ({ articuloId: (await articuloPorCodigo(tx, l.articulo)).id, cantidadDespachada: l.cantidad })));
+      const lineas = [];
+      for (const l of dto.lineas) lineas.push({ articuloId: (await articuloPorCodigo(tx, l.articulo)).id, cantidadDespachada: l.cantidad });
       const orden = await tx.ordenTraslado.create({
         data: { numero: `TMP-${crypto.randomUUID()}`, origenId: origen.id, destinoId: destino.id, estado: 'EMITIDA', fechaEmision: fecha, usuarioId: u.id, lineas: { create: lineas } },
       });

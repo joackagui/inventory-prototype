@@ -212,13 +212,22 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
   const inicios: number[] = [];
   for (let t = 0; t < t1; t += periodo) inicios.push(t);
   const entradas = new Map<number, Omit<CapaSim, 'articulo' | 'almacen' | 'ubicacion' | 'fechaEntrada'>>();
+  // Lote único por artículo y almacén: los de las capas finales quedan limpios; un histórico que coincida lleva sufijo.
+  const loteDe = (elaboracion: Date) => `${alm.corto}-${art.codigo.slice(4)}-${yymmdd(elaboracion)}`;
+  const usados = new Set(finales.map((f) => loteDe(masDias(f.vencimiento, -art.vida))));
+  const loteHistorico = (elaboracion: Date) => {
+    let lote = loteDe(elaboracion);
+    for (let n = 2; usados.has(lote); n++) lote = `${loteDe(elaboracion)}-${n}`;
+    usados.add(lote);
+    return lote;
+  };
   inicios.forEach((t, j) => {
     let cantidad = j === 0 ? colchon : 0;
     for (let u = t; u < Math.min(inicios[j + 1] ?? t1, t1); u++) cantidad += salida(u);
     if (cantidad === 0) return;
     const elaboracion = masDias(DIAS[t], -3);
     entradas.set(t, {
-      lote: `${alm.corto}-${art.codigo.slice(4)}-${yymmdd(elaboracion)}`,
+      lote: loteHistorico(elaboracion),
       fechaElaboracion: elaboracion,
       fechaVencimiento: masDias(elaboracion, art.vida),
       cantidadInicial: cantidad,
@@ -231,7 +240,7 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
     if (elaboracion > DIAS[f.t]) throw new Error(`Capa elaborada después de su entrada: ${art.codigo} ${alm.corto}`);
     const inicial = f.restante + (i === 0 ? salidaDesdeT1 - colchon : 0);
     entradas.set(f.t, {
-      lote: `${alm.corto}-${art.codigo.slice(4)}-${yymmdd(elaboracion)}`,
+      lote: loteDe(elaboracion),
       fechaElaboracion: elaboracion,
       fechaVencimiento: f.vencimiento,
       cantidadInicial: inicial,

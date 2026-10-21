@@ -27,7 +27,8 @@ export class PedidosService {
       const almacen = await almacenPlanta(tx, dto.almacen);
       const cliente = await tx.cliente.findUnique({ where: { codigo: dto.cliente } });
       if (!cliente) throw noEncontrado(`El cliente ${dto.cliente}`);
-      const lineas = await Promise.all(dto.lineas.map(async (l) => ({ ...l, articulo: await articuloPorCodigo(tx, l.articulo), bonificacion: !!l.bonificacion })));
+      const lineas = [];
+      for (const l of dto.lineas) lineas.push({ ...l, articulo: await articuloPorCodigo(tx, l.articulo), bonificacion: !!l.bonificacion });
       await bloquear(tx, lineas.map((l) => ({ articuloId: l.articulo.id, almacenId: almacen.id })));
 
       // Bonificación en especie: requiere promoción BONIFICACION vigente con tope disponible.

@@ -32,10 +32,9 @@ export async function bloquear(tx: Tx, pares: Par[]) {
 
 // Saldo de un artículo en un almacén. vendible = capas DISPONIBLES con vida ≥ días mínimos − reservado.
 export async function saldo(tx: Tx, par: Par, fecha: Date, diasMinimos: number) {
-  const [capas, reservas] = await Promise.all([
-    tx.capaFifo.findMany({ where: { ...par, estado: 'DISPONIBLE', cantidadRestante: { gt: 0 } } }),
-    tx.lineaPedido.aggregate({ where: { articuloId: par.articuloId, pedido: { almacenId: par.almacenId, estado: 'CONFIRMADO' } }, _sum: { cantidad: true } }),
-  ]);
+  // Secuencial: una transacción usa una sola conexión.
+  const capas = await tx.capaFifo.findMany({ where: { ...par, estado: 'DISPONIBLE', cantidadRestante: { gt: 0 } } });
+  const reservas = await tx.lineaPedido.aggregate({ where: { articuloId: par.articuloId, pedido: { almacenId: par.almacenId, estado: 'CONFIRMADO' } }, _sum: { cantidad: true } });
   const limite = masDias(fecha, diasMinimos);
   const fisico = capas.reduce((s, c) => s + c.cantidadRestante, 0);
   const despachable = capas.filter((c) => c.fechaVencimiento >= limite).reduce((s, c) => s + c.cantidadRestante, 0);
