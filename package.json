@@ -15,6 +15,7 @@
     "test": "npm --prefix backend test && npm --prefix backend run test:e2e && npm --prefix frontend test",
     "demo:api": "npm --prefix backend run demo:api",
     "demo:alertas": "npm --prefix backend run demo:alertas",
-    "test:humo": "npm --prefix frontend run test:humo"
+    "test:humo": "npm --prefix frontend run test:humo",
+    "capturas": "npm --prefix frontend run capturas"
   }
 }

@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:humo": "playwright test"
+    "test:humo": "playwright test --grep-invert @capturas",
+    "capturas": "playwright test --grep @capturas"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

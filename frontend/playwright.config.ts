@@ -23,7 +23,6 @@ export default defineConfig({
   testDir: 'e2e',
   workers: 1,
   timeout: 60_000,
-  globalSetup: './e2e/preparar.ts',
   use: { baseURL: 'http://localhost:5173', launchOptions: { executablePath: chromiumLocal() } },
   // Levanta backend y frontend si no están corriendo (reutiliza los que ya estén).
   webServer: [
