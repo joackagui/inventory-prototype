@@ -51,17 +51,37 @@ describe('Traslados entre plantas', () => {
     expect(rec.body.estado).toBe('CON_DIFERENCIA');
     expect(rec.body.lineas[0]).toMatchObject({ cantidadDespachada: 236, cantidadRecibida: 230, estadoRecepcion: 'CONFORME' });
 
-    // El total del sistema solo baja por la diferencia (6, registrada como merma en el tránsito).
+    // La diferencia queda en el tránsito como ajuste PENDIENTE: el total no cambia hasta que R07 decida.
+    expect(await totalSistema('ART-10022')).toBe(total);
+    expect(await stockDe(como, 'CD-LP-01', 'ART-10022')).toMatchObject({ disponible: 470, enTransito: 6 });
+    const ajuste = await prisma.ajusteInventario.findFirstOrThrow({ where: { ordenTrasladoId: id } });
+    expect(ajuste).toMatchObject({ estado: 'PENDIENTE', motivo: 'DIFERENCIA_RECEPCION', cantidad: -6 });
+    expect((await como('ALM-LP').post(`/ajustes/${ajuste.id}/aprobar`)).status).toBe(403);
+    const aprobado = await como('LOG-01').post(`/ajustes/${ajuste.id}/aprobar`);
+    expect(aprobado.status).toBe(200);
+    // Al aprobar, sale del tránsito como merma al costo FIFO de su capa: ahora sí baja el total.
     expect(await totalSistema('ART-10022')).toBe(total! - 6);
     expect(await stockDe(como, 'CD-LP-01', 'ART-10022')).toMatchObject({ disponible: 470, enTransito: 0 });
-    const merma = await prisma.movimiento.findMany({ where: { documentoTipo: 'OrdenTraslado', documentoId: id, tipo: 'MERMA' } });
+    const merma = await prisma.movimiento.findMany({ where: { documentoTipo: 'AjusteInventario', documentoId: ajuste.id, tipo: 'MERMA' } });
     expect(merma.reduce((s, m) => s + m.cantidad, 0)).toBe(-6);
+    expect(aprobado.body.valor).toBe(Math.round(merma.reduce((s, m) => s + Number(m.valor), 0) * 100) / 100);
     const recibidas = await prisma.capaFifo.findMany({ where: { almacen: { codigo: 'CD-LP-01' }, articulo: { codigo: 'ART-10022' }, fechaEntrada: new Date('2027-06-30') } });
     expect(recibidas.reduce((s, c) => s + c.cantidadRestante, 0)).toBe(230);
     for (const c of recibidas) expect(Number(c.costoUnitario)).toBe(Number(origenes.find((o) => o.lote === c.lote)!.costoUnitario));
 
     // No se recibe dos veces.
     expect((await como('ALM-LP').post(`/traslados/${id}/recibir`, { lineas: [{ articulo: 'ART-10022', cantidadRecibida: 230 }] })).body.codigo).toBe('TRASLADO_YA_RECIBIDO');
+  });
+
+  it('diferencia rechazada por R07: la mercadería pasa del tránsito al destino para recuento', async () => {
+    const orden = await como('LOG-01').post('/traslados', { origen: 'CD-SC-01', destino: 'CD-CB-01', lineas: [{ articulo: 'ART-10021', cantidad: 100 }] });
+    await como('ALM-SC').post(`/traslados/${orden.body.id}/despachar`);
+    await como('ALM-CB').post(`/traslados/${orden.body.id}/recibir`, { lineas: [{ articulo: 'ART-10021', cantidadRecibida: 90 }] });
+    expect(await stockDe(como, 'CD-CB-01', 'ART-10021')).toMatchObject({ disponible: 730, enTransito: 10 });
+    const ajuste = await prisma.ajusteInventario.findFirstOrThrow({ where: { ordenTrasladoId: orden.body.id } });
+    expect((await como('LOG-01').post(`/ajustes/${ajuste.id}/rechazar`)).body.estado).toBe('RECHAZADO');
+    expect(await stockDe(como, 'CD-CB-01', 'ART-10021')).toMatchObject({ disponible: 740, enTransito: 0 });
+    expect((await como('ALM-CB').post('/ajustes', { almacen: 'CD-CB-01', articulo: 'ART-10021', cantidad: -1, motivo: 'DIFERENCIA_RECEPCION' })).body.codigo).toBe('MOTIVO_RESERVADO');
   });
 
   it('recibe el traslado sembrado SC→CB y lo dañado va a cuarentena', async () => {

@@ -50,3 +50,28 @@ export async function stockDe(como: Como, almacen: string, articulo: string) {
   const r = await como('LOG-01').get(`/stock?almacenId=${almacen}`);
   return r.body.articulos.find((a: { codigo: string }) => a.codigo === articulo);
 }
+
+export interface AlertaApi {
+  id: number;
+  codigo: string;
+  color: string;
+  estado: string;
+  situacion: string;
+  mensaje: string;
+  referenciaTipo: string;
+  referenciaId: number | null;
+  nivelEscalamiento: number;
+  resultado: string | null;
+  almacen: { codigo: string } | null;
+  articulo: { codigo: string } | null;
+}
+
+// Alertas vigentes (ABIERTA o ATENDIDA), opcionalmente filtradas por código, almacén y artículo.
+export async function vigentes(como: Como, codigo?: string, almacen?: string, articulo?: string): Promise<AlertaApi[]> {
+  const r = await como('LOG-01').get('/alertas?tamano=500');
+  return (r.body.datos as AlertaApi[]).filter(
+    (a) => a.estado !== 'RESUELTA' && (!codigo || a.codigo === codigo) && (!almacen || a.almacen?.codigo === almacen) && (!articulo || a.articulo?.codigo === articulo),
+  );
+}
+
+export const tupla = (a: AlertaApi) => [a.almacen?.codigo ?? 'SISTEMA', a.codigo, a.color, a.articulo?.codigo ?? '-'];
