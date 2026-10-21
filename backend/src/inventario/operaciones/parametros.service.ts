@@ -21,16 +21,37 @@ export class ParametrosService {
     private readonly eventos: EventEmitter2,
   ) {}
 
+  // Entradas resultantes de un cambio: si cambia la clase sin indicar nivel de servicio, se usa el nivel estándar de la nueva clase.
+  private entradas(actual: ParametroArticuloAlmacen, dto: ParametrosDto) {
+    const clase = dto.claseAbc ?? actual.claseAbc;
+    return {
+      demandaDiaria: dto.demandaDiaria ?? actual.demandaDiaria,
+      desviacionDemanda: dto.desviacionDemanda ?? actual.desviacionDemanda,
+      leadTimeDias: dto.leadTimeDias ?? actual.leadTimeDias,
+      claseAbc: clase,
+      nivelServicio: dto.nivelServicio ?? (dto.claseAbc ? NIVEL_SERVICIO[clase].nivelServicio : actual.nivelServicio),
+    };
+  }
+
+  private async parametro(tx: Tx, articulo: string, almacen: string) {
+    const actual = await tx.parametroArticuloAlmacen.findFirst({ where: { articulo: { codigo: articulo }, almacen: { codigo: almacen } } });
+    if (!actual) throw noEncontrado(`El parámetro de ${articulo} en ${almacen}`);
+    return actual;
+  }
+
+  // Vista previa: mismas fórmulas que al guardar, sin escribir nada.
+  async simular(articulo: string, almacen: string, dto: ParametrosDto) {
+    const actual = await this.parametro(this.prisma, articulo, almacen);
+    const e = this.entradas(actual, dto);
+    return { actual: resumen(actual), simulado: { ...e, ...calcularParametros(e.demandaDiaria, e.desviacionDemanda, e.leadTimeDias, e.claseAbc, e.nivelServicio) } };
+  }
+
   // Cambia las entradas (d, σd, L, clase, nivel de servicio) y recalcula Z, SS, ROP, Q y Máx con las funciones puras.
   async actualizar(articulo: string, almacen: string, dto: ParametrosDto, u: UsuarioSesion) {
     const fecha = await this.simulacion.fechaOperacion();
     const r = await this.prisma.$transaction(async (tx) => {
-      const actual = await tx.parametroArticuloAlmacen.findFirst({ where: { articulo: { codigo: articulo }, almacen: { codigo: almacen } } });
-      if (!actual) throw noEncontrado(`El parámetro de ${articulo} en ${almacen}`);
-      const clase = dto.claseAbc ?? actual.claseAbc;
-      // Si cambia la clase sin indicar nivel de servicio, se usa el nivel estándar de la nueva clase.
-      const nivel = dto.nivelServicio ?? (dto.claseAbc ? NIVEL_SERVICIO[clase].nivelServicio : actual.nivelServicio);
-      return this.guardar(tx, actual, { demandaDiaria: dto.demandaDiaria, desviacionDemanda: dto.desviacionDemanda, leadTimeDias: dto.leadTimeDias, claseAbc: clase, nivelServicio: nivel }, u, fecha);
+      const actual = await this.parametro(tx, articulo, almacen);
+      return this.guardar(tx, actual, this.entradas(actual, dto), u, fecha);
     }, TX);
     await emitirCambio(this.eventos, [r], 'parametros');
     return r;

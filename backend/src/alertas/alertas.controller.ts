@@ -13,15 +13,15 @@ export class AlertasController {
   /** Alertas con filtros (estado, color, código, almacén, artículo, rol responsable) y paginación. R01 no ve alertas. */
   @Get('alertas')
   @Roles(...LECTURA)
-  listar(@Query() f: FiltroAlertasDto) {
-    return this.servicio.listar(f);
+  listar(@Query() f: FiltroAlertasDto, @UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.listar(f, u);
   }
 
   /** Contadores de alertas vigentes por color, código y almacén, sin atender y escaladas. */
   @Get('alertas/resumen')
   @Roles(...LECTURA)
-  resumen(@Query() q: AlmacenAlertasDto) {
-    return this.servicio.resumen(q.almacenId);
+  resumen(@Query() q: AlmacenAlertasDto, @UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.resumen(q.almacenId, u);
   }
 
   /** Umbrales vigentes de las alertas. */
@@ -29,6 +29,13 @@ export class AlertasController {
   @Roles(...LECTURA)
   umbrales() {
     return this.servicio.umbrales();
+  }
+
+  /** Umbrales por alerta: valor vigente y valor por defecto. */
+  @Get('alertas/umbrales/detalle')
+  @Roles(...LECTURA)
+  umbralesDetalle() {
+    return this.servicio.umbralesDetalle();
   }
 
   /** Cambia un umbral (R07). Valida que el amarillo se dispare antes que el rojo; queda en la bitácora y reevalúa. */
@@ -49,8 +56,8 @@ export class AlertasController {
   /** Alerta con su historial (cambios de color, atención, escalamientos). */
   @Get('alertas/:id')
   @Roles(...LECTURA)
-  detalle(@Param('id', ParseIntPipe) id: number) {
-    return this.servicio.detalle(id);
+  detalle(@Param('id', ParseIntPipe) id: number, @UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.detalle(id, u);
   }
 
   /** Atiende la alerta: rol responsable (R06 solo en su almacén) o R07. La alerta se resuelve sola cuando desaparece la condición. */

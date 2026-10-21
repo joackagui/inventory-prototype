@@ -1,10 +1,9 @@
-import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { TIPOS_FISICOS, vidaRestanteDias } from '../inventario/calculos/formulas.js';
-import { resolverAlmacen } from '../inventario/stock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { SimulacionService } from '../simulacion/simulacion.service.js';
-import { LECTURA, Roles } from '../usuarios/autorizacion.js';
+import { LECTURA, Roles, TODOS, UsuarioActual, type UsuarioSesion } from '../usuarios/autorizacion.js';
+import { AlmacenArticuloDto, KardexDto, SerieDto } from './articulos.dto.js';
+import { ArticulosService } from './articulos.service.js';
 
 @ApiTags('Artículos')
 @Roles(...LECTURA)
@@ -12,7 +11,7 @@ import { LECTURA, Roles } from '../usuarios/autorizacion.js';
 export class ArticulosController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly simulacion: SimulacionService,
+    private readonly servicio: ArticulosService,
   ) {}
 
   /** Artículos con parámetros por almacén y clase ABC. */
@@ -24,50 +23,35 @@ export class ArticulosController {
     });
   }
 
-  /** Capas FIFO con saldo, en orden de consumo. */
-  @Get(':codigo/capas')
-  async capas(@Param('codigo') codigo: string) {
-    const fecha = await this.simulacion.fechaOperacion();
-    const capas = await this.prisma.capaFifo.findMany({
-      where: { articulo: { codigo }, cantidadRestante: { gt: 0 } },
-      include: { almacen: { select: { codigo: true } }, ubicacion: { select: { codigo: true } } },
-      orderBy: [{ almacenId: 'asc' }, { fechaEntrada: 'asc' }, { id: 'asc' }],
-    });
-    return capas.map((c) => ({ ...c, costoUnitario: Number(c.costoUnitario), vidaRestanteDias: vidaRestanteDias(c.fechaVencimiento, fecha) }));
+  /** Tabla de artículos con estado por almacén, vendible total, cobertura mínima y alertas. R01: solo disponible/agotado. */
+  @Get('estado')
+  @Roles(...TODOS)
+  estado(@UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.estado(u);
   }
 
-  /** Kardex valorado: saldo acumulado con los movimientos físicos. */
+  /** Ficha: estados del stock, parámetros, costos FIFO y stock por función por almacén. R01: solo disponible/vendible. */
+  @Get(':codigo/resumen')
+  @Roles(...TODOS)
+  resumen(@Param('codigo') codigo: string, @Query() q: AlmacenArticuloDto, @UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.resumen(codigo, q.almacenId, u);
+  }
+
+  /** Serie diaria del stock físico de los últimos N días, con SS, ROP y Máx. */
+  @Get(':codigo/serie')
+  serie(@Param('codigo') codigo: string, @Query() q: SerieDto) {
+    return this.servicio.serie(codigo, q.almacenId, q.dias);
+  }
+
+  /** Capas FIFO con saldo, en orden de consumo: próxima en salir, despachable y valor. */
+  @Get(':codigo/capas')
+  capas(@Param('codigo') codigo: string) {
+    return this.servicio.capas(codigo);
+  }
+
+  /** Kardex valorado con saldo acumulado (cantidad y valor), filtros por tipo y fechas, y paginación (más reciente primero). */
   @Get(':codigo/kardex')
-  async kardex(@Param('codigo') codigo: string, @Query('almacenId') almacenParam?: string) {
-    if (!almacenParam) throw new BadRequestException('Falta almacenId');
-    const almacen = await resolverAlmacen(this.prisma, almacenParam);
-    const movimientos = await this.prisma.movimiento.findMany({
-      where: { articulo: { codigo }, almacenId: almacen.id },
-      include: { usuario: { select: { codigo: true } }, ubicacion: { select: { codigo: true } }, capa: { select: { lote: true } } },
-      orderBy: [{ fechaOperacion: 'asc' }, { id: 'asc' }],
-    });
-    const fisicos: readonly string[] = TIPOS_FISICOS;
-    let saldo = 0;
-    let saldoValor = 0;
-    return movimientos.map((m) => {
-      if (fisicos.includes(m.tipo)) {
-        saldo += m.cantidad;
-        saldoValor = Math.round((saldoValor + Number(m.valor)) * 100) / 100;
-      }
-      return {
-        id: m.id,
-        fechaOperacion: m.fechaOperacion,
-        tipo: m.tipo,
-        motivo: m.motivo,
-        ubicacion: m.ubicacion.codigo,
-        lote: m.capa?.lote ?? null,
-        usuario: m.usuario.codigo,
-        cantidad: m.cantidad,
-        costoUnitario: Number(m.costoUnitario),
-        valor: Number(m.valor),
-        saldo,
-        saldoValor,
-      };
-    });
+  kardex(@Param('codigo') codigo: string, @Query() q: KardexDto) {
+    return this.servicio.kardex(codigo, q);
   }
 }

@@ -9,9 +9,8 @@ import { SimulacionService } from '../simulacion/simulacion.service.js';
 import type { UsuarioSesion } from '../usuarios/autorizacion.js';
 import type { AtenderDto, FiltroAlertasDto } from './alertas.dto.js';
 import { evaluarAlertas } from './evaluacion.js';
-import { combinarUmbrales, validarUmbral } from './evaluadores.js';
+import { CATALOGO, combinarUmbrales, GRAVEDAD, medicion, peorColor, UMBRALES_POR_DEFECTO, validarUmbral } from './evaluadores.js';
 
-const GRAVEDAD = { ROJO: 3, AMARILLO: 2, AZUL: 1 } as const;
 const VIGENTES = { in: ['ABIERTA', 'ATENDIDA'] as ('ABIERTA' | 'ATENDIDA')[] };
 const SITUACION = { ABIERTA: 'abierta', ATENDIDA: 'atendida, condición vigente', RESUELTA: 'resuelta' } as const;
 const conRelaciones = { almacen: { select: { codigo: true } }, articulo: { select: { codigo: true } }, atendidaPor: { select: { codigo: true } } } as const;
@@ -48,17 +47,26 @@ export class AlertasService implements OnApplicationBootstrap {
     });
   }
 
-  async listar(f: FiltroAlertasDto) {
+  // R06 solo ve las alertas de su almacén.
+  private almacenPropio(u: UsuarioSesion) {
+    return u.rolCodigo === 'R06' ? u.almacenId : null;
+  }
+
+  async listar(f: FiltroAlertasDto, u: UsuarioSesion) {
+    const propio = this.almacenPropio(u);
     const where: Prisma.AlertaWhereInput = {
-      estado: f.estado ?? (f.orden === 'gravedad' ? VIGENTES : undefined),
+      estado: f.sinAtender ? 'ABIERTA' : f.estado === 'VIGENTE' || (!f.estado && f.orden) ? VIGENTES : f.estado,
       color: f.color,
-      codigo: f.codigo,
-      almacen: f.almacen ? { codigo: f.almacen } : undefined,
+      codigo: f.codigos ? { in: f.codigos.split(',') } : f.codigo,
+      nivelEscalamiento: f.escaladas ? { gt: 0 } : undefined,
+      almacenId: propio ?? undefined,
+      almacen: f.almacen && !propio ? { codigo: f.almacen } : undefined,
       articulo: f.articulo ? { codigo: f.articulo } : undefined,
       rolesResponsables: f.rol ? { has: f.rol } : undefined,
     };
     const fecha = await this.simulacion.fechaOperacion();
     const todas = await this.prisma.alerta.findMany({ where, include: conRelaciones, orderBy: [{ codigo: 'asc' }, { id: 'asc' }] });
+    if (f.orden === 'antiguedad') todas.sort((a, b) => a.fechaOperacion.getTime() - b.fechaOperacion.getTime() || GRAVEDAD[b.color] - GRAVEDAD[a.color] || a.id - b.id);
     if (f.orden === 'gravedad') {
       todas.sort(
         (a, b) =>
@@ -74,21 +82,31 @@ export class AlertasService implements OnApplicationBootstrap {
       total: todas.length,
       pagina: f.pagina,
       tamano: f.tamano,
-      datos: datos.map((a) => ({ ...a, situacion: SITUACION[a.estado], antiguedadDias: Math.round((fecha.getTime() - a.fechaOperacion.getTime()) / 86_400_000) })),
+      datos: datos.map((a) => ({ ...a, nombre: CATALOGO[a.codigo].nombre, situacion: SITUACION[a.estado], antiguedadDias: Math.round((fecha.getTime() - a.fechaOperacion.getTime()) / 86_400_000) })),
     };
   }
 
-  async detalle(id: number) {
+  async detalle(id: number, u?: UsuarioSesion) {
     const a = await this.prisma.alerta.findUnique({
       where: { id },
       include: { ...conRelaciones, historial: { include: { usuario: { select: { codigo: true } } }, orderBy: { id: 'asc' } } },
     });
     if (!a) throw noEncontrado(`La alerta ${id}`);
-    return { ...a, situacion: SITUACION[a.estado] };
+    const propio = u ? this.almacenPropio(u) : null;
+    if (propio && a.almacenId !== propio) throw new ErrorNegocio(403, 'ALMACEN_AJENO', `${u!.codigo} solo ve las alertas de su almacén`);
+    const fecha = await this.simulacion.fechaOperacion();
+    return {
+      ...a,
+      nombre: CATALOGO[a.codigo].nombre,
+      situacion: SITUACION[a.estado],
+      antiguedadDias: Math.round((fecha.getTime() - a.fechaOperacion.getTime()) / 86_400_000),
+      medicion: medicion(a.codigo, a.datos as Record<string, unknown>, await this.umbrales()),
+    };
   }
 
-  async resumen(almacenParam?: string) {
-    const almacen = almacenParam ? await resolverAlmacen(this.prisma, almacenParam) : null;
+  async resumen(almacenParam: string | undefined, u: UsuarioSesion) {
+    const propio = this.almacenPropio(u);
+    const almacen = propio ? await this.prisma.almacen.findUniqueOrThrow({ where: { id: propio } }) : almacenParam ? await resolverAlmacen(this.prisma, almacenParam) : null;
     const vigentes = await this.prisma.alerta.findMany({ where: { estado: VIGENTES, almacenId: almacen?.id }, include: { almacen: { select: { codigo: true } } } });
     const contar = (clave: (a: (typeof vigentes)[number]) => string) => vigentes.reduce<Record<string, number>>((acc, a) => ({ ...acc, [clave(a)]: (acc[clave(a)] ?? 0) + 1 }), {});
     return {
@@ -120,7 +138,7 @@ export class AlertasService implements OnApplicationBootstrap {
     });
     if (!r.count) throw new ErrorNegocio(409, 'ALERTA_NO_ABIERTA', `La alerta ${id} ya fue atendida`);
     await this.prisma.historialAlerta.create({ data: { alertaId: id, tipo: 'ATENDIDA', usuarioId: u.id, detalle: dto.resultado, fechaOperacion: fecha } });
-    return this.detalle(id);
+    return this.detalle(id, u);
   }
 
   // Semáforo por artículo: color global = la alerta vigente más grave (rojo > amarillo > azul > verde).
@@ -134,7 +152,6 @@ export class AlertasService implements OnApplicationBootstrap {
       fechaOperacion: fecha,
       articulos: stock.map((s) => {
         const propias = alertas.filter((a) => a.articuloId === s.articuloId);
-        const peor = propias.reduce<keyof typeof GRAVEDAD | null>((m, a) => (!m || GRAVEDAD[a.color] > GRAVEDAD[m] ? a.color : m), null);
         return {
           codigo: s.codigo,
           descripcion: s.descripcion,
@@ -150,7 +167,7 @@ export class AlertasService implements OnApplicationBootstrap {
           stockMaximo: s.stockMaximo,
           vidaRestanteDias: s.vidaRestanteDias,
           trasladoPropuesto: s.trasladoPropuesto,
-          color: peor ?? 'VERDE',
+          color: peorColor(propias.map((a) => a.color)),
           alertas: [...new Set(propias.map((a) => a.codigo))].sort(),
         };
       }),
@@ -159,6 +176,12 @@ export class AlertasService implements OnApplicationBootstrap {
 
   async umbrales() {
     return combinarUmbrales(await this.simulacion.valor<Record<string, object> | null>('umbralesAlertas', null));
+  }
+
+  // Umbrales por alerta con su valor vigente y el valor por defecto (pestaña Umbrales).
+  async umbralesDetalle() {
+    const vigentes = (await this.umbrales()) as Record<string, object>;
+    return Object.entries(UMBRALES_POR_DEFECTO).map(([clave, porDefecto]) => ({ clave, nombre: CATALOGO[clave].nombre, valor: vigentes[clave], porDefecto }));
   }
 
   async cambiarUmbral(clave: string, valor: Record<string, unknown>, u: UsuarioSesion) {

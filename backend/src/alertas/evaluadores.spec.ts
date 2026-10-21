@@ -16,7 +16,9 @@ import {
   al15,
   al16,
   combinarUmbrales,
+  medicion,
   nivelPorHorasEnRojo,
+  peorColor,
   UMBRALES_POR_DEFECTO as U,
   validarUmbral,
 } from './evaluadores.js';
@@ -114,5 +116,23 @@ describe('escalamiento y umbrales editables', () => {
   it('combina los umbrales guardados con los valores por defecto', () => {
     expect(combinarUmbrales({ AL04: { amarilloDias: 40 } }).AL04).toEqual({ amarilloDias: 40, rojoDias: 15 });
     expect(combinarUmbrales(null)).toEqual(U);
+  });
+});
+
+describe('medición contra umbrales y color global', () => {
+  it('AL01 y AL04: menor es peor, con los umbrales vigentes', () => {
+    expect(medicion('AL01', { posicion: 240, rop: 246, ss: 36 }, U)).toMatchObject({ valor: 240, amarillo: 246, rojo: 36, menorEsPeor: true, unidad: 'u.' });
+    expect(medicion('AL04', { vidaRestanteDias: 12 }, combinarUmbrales({ AL04: { amarilloDias: 40 } }))).toMatchObject({ valor: 12, amarillo: 40, rojo: 15 });
+  });
+
+  it('AL05 usa la frecuencia de la clase; AL16 no tiene medidor', () => {
+    expect(medicion('AL05', { diasDesdeConteo: 185, clase: 'C' }, U)).toMatchObject({ valor: 185, amarillo: 180, rojo: 187, menorEsPeor: false });
+    expect(medicion('AL16', { estado: 'REINTENTO' }, U)).toBeNull();
+  });
+
+  it('el color global es el más grave', () => {
+    expect(peorColor([])).toBe('VERDE');
+    expect(peorColor(['AZUL', 'AMARILLO'])).toBe('AMARILLO');
+    expect(peorColor(['AZUL', 'ROJO', 'AMARILLO'])).toBe('ROJO');
   });
 });

@@ -199,3 +199,61 @@ export const NIVELES_ESCALAMIENTO = ['Responsable', 'R07 Coordinador de logísti
 
 // Escalamiento de una alerta ROJA no atendida: > 24 h en rojo sube a R07, > 48 h al Gerente.
 export const nivelPorHorasEnRojo = (horas: number) => (horas > 48 ? 2 : horas > 24 ? 1 : 0);
+
+export const GRAVEDAD: Record<ColorAlerta, number> = { ROJO: 3, AMARILLO: 2, AZUL: 1 };
+
+// Color global de un artículo o celda: el de su alerta vigente más grave.
+export const peorColor = (colores: ColorAlerta[]): ColorAlerta | 'VERDE' =>
+  colores.reduce<ColorAlerta | 'VERDE'>((m, c) => (m === 'VERDE' || GRAVEDAD[c] > GRAVEDAD[m] ? c : m), 'VERDE');
+
+export interface Medicion {
+  etiqueta: string;
+  valor: number;
+  unidad: string;
+  // Umbral amarillo (o azul en AL03) y rojo con los umbrales vigentes; null si la alerta no tiene ese nivel.
+  amarillo: number | null;
+  rojo: number;
+  menorEsPeor: boolean;
+  nivelBajoEsAzul?: boolean;
+}
+
+// Valor medido frente a sus umbrales, para mostrarlo como medidor (panel de detalle de la alerta).
+export function medicion(codigo: string, d: Record<string, unknown>, u: Umbrales): Medicion | null {
+  const n = (k: string) => Number(d[k]);
+  switch (codigo) {
+    case 'AL01':
+      return { etiqueta: 'Posición (disponible + tránsito)', valor: n('posicion'), unidad: 'u.', amarillo: n('rop'), rojo: n('ss'), menorEsPeor: true };
+    case 'AL02':
+      return { etiqueta: 'Stock vendible', valor: Math.max(0, n('vendible')), unidad: 'u.', amarillo: null, rojo: 0, menorEsPeor: true };
+    case 'AL03':
+      return { etiqueta: 'Disponible', valor: n('disponible'), unidad: 'u.', amarillo: n('maximo'), rojo: n('maximo') * u.AL03.rojoMultiploMax, menorEsPeor: false, nivelBajoEsAzul: true };
+    case 'AL04':
+      return { etiqueta: 'Vida restante del lote', valor: n('vidaRestanteDias'), unidad: 'días', amarillo: u.AL04.amarilloDias, rojo: u.AL04.rojoDias, menorEsPeor: true };
+    case 'AL05': {
+      const f = u.AL05.frecuenciaDias[d.clase as 'A' | 'B' | 'C'];
+      return { etiqueta: 'Días desde el último conteo', valor: n('diasDesdeConteo'), unidad: 'días', amarillo: f, rojo: f + u.AL05.rojoDiasExtra, menorEsPeor: false };
+    }
+    case 'AL06':
+      return { etiqueta: 'Diferencia del conteo', valor: n('porcentaje'), unidad: '%', amarillo: u.AL06.amarilloPct, rojo: u.AL06.rojoPct, menorEsPeor: false };
+    case 'AL07':
+      return { etiqueta: 'Horas pendiente de aprobación', valor: n('horas'), unidad: 'h', amarillo: u.AL07.amarilloHoras, rojo: u.AL07.rojoHoras, menorEsPeor: false };
+    case 'AL08':
+      return { etiqueta: 'Días en tránsito', valor: n('diasEnTransito'), unidad: 'días', amarillo: n('leadTimeDias') + u.AL08.amarilloDiasExtra, rojo: n('leadTimeDias') + u.AL08.rojoDiasExtra, menorEsPeor: false };
+    case 'AL09':
+      return { etiqueta: 'Diferencia en la recepción', valor: n('porcentaje'), unidad: '%', amarillo: 0, rojo: u.AL09.rojoPct, menorEsPeor: false };
+    case 'AL10':
+      return { etiqueta: 'Antigüedad de los envases', valor: n('dias'), unidad: 'días', amarillo: u.AL10.amarilloDias, rojo: u.AL10.rojoDias, menorEsPeor: false };
+    case 'AL11':
+      return { etiqueta: 'Horas pendiente de revisión', valor: n('horas'), unidad: 'h', amarillo: u.AL11.amarilloHoras, rojo: u.AL11.rojoHoras, menorEsPeor: false };
+    case 'AL12':
+      return { etiqueta: 'Horas de reserva sin despacho', valor: n('horas'), unidad: 'h', amarillo: u.AL12.amarilloHoras, rojo: u.AL12.rojoHoras, menorEsPeor: false };
+    case 'AL13':
+      return { etiqueta: 'Variación de costo vs. capa anterior', valor: n('variacionPct'), unidad: '%', amarillo: u.AL13.amarilloPct, rojo: u.AL13.rojoPct, menorEsPeor: false };
+    case 'AL14':
+      return { etiqueta: 'Días para la fiesta', valor: n('diasParaFiesta'), unidad: 'días', amarillo: u.AL14.amarilloDias, rojo: u.AL14.rojoDias, menorEsPeor: true };
+    case 'AL15':
+      return { etiqueta: 'Cobertura vs. días de promoción', valor: n('coberturaDias'), unidad: 'días', amarillo: n('diasRestantes'), rojo: 0, menorEsPeor: true };
+    default:
+      return null;
+  }
+}

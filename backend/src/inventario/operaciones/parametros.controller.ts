@@ -16,6 +16,14 @@ export class ParametrosController {
     return this.servicio.actualizar(articulo, almacen, dto, u);
   }
 
+  /** Vista previa (R07): calcula Z, SS, ROP, Q y Máx con los valores propuestos, sin guardar. */
+  @Post('parametros/:articulo/:almacen/simular')
+  @HttpCode(200)
+  @Roles('R07')
+  simular(@Param('articulo') articulo: string, @Param('almacen') almacen: string, @Body() dto: ParametrosDto) {
+    return this.servicio.simular(articulo, almacen, dto);
+  }
+
   /** Recalcula la clase ABC de todos los artículos (R07). */
   @Post('abc/recalcular')
   @HttpCode(200)
