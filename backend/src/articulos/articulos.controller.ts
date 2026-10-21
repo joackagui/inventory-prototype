@@ -1,9 +1,13 @@
 import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { TIPOS_FISICOS, vidaRestanteDias } from '../inventario/calculos/formulas.js';
 import { resolverAlmacen } from '../inventario/stock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SimulacionService } from '../simulacion/simulacion.service.js';
+import { LECTURA, Roles } from '../usuarios/autorizacion.js';
 
+@ApiTags('Artículos')
+@Roles(...LECTURA)
 @Controller('articulos')
 export class ArticulosController {
   constructor(
@@ -11,6 +15,7 @@ export class ArticulosController {
     private readonly simulacion: SimulacionService,
   ) {}
 
+  /** Artículos con parámetros por almacén y clase ABC. */
   @Get()
   listar() {
     return this.prisma.articulo.findMany({
@@ -19,7 +24,7 @@ export class ArticulosController {
     });
   }
 
-  // Capas FIFO con saldo, en orden de consumo.
+  /** Capas FIFO con saldo, en orden de consumo. */
   @Get(':codigo/capas')
   async capas(@Param('codigo') codigo: string) {
     const fecha = await this.simulacion.fechaOperacion();
@@ -31,7 +36,7 @@ export class ArticulosController {
     return capas.map((c) => ({ ...c, costoUnitario: Number(c.costoUnitario), vidaRestanteDias: vidaRestanteDias(c.fechaVencimiento, fecha) }));
   }
 
-  // Kardex valorado: saldo acumulado solo con los movimientos que cambian el stock físico.
+  /** Kardex valorado: saldo acumulado con los movimientos físicos. */
   @Get(':codigo/kardex')
   async kardex(@Param('codigo') codigo: string, @Query('almacenId') almacenParam?: string) {
     if (!almacenParam) throw new BadRequestException('Falta almacenId');
