@@ -55,7 +55,7 @@ export class EnvasesService {
       ]);
       return { par, pendiente: await this.pendienteCliente(tx, cliente.id, par) };
     }, TX);
-    emitirCambio(this.eventos, [r.par], `envase_${tipo}`);
+    await emitirCambio(this.eventos, [r.par], `envase_${tipo}`);
     return { cliente: dto.cliente, articulo: dto.articulo, pendiente: r.pendiente };
   }
 

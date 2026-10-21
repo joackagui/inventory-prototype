@@ -6,6 +6,7 @@ import { config } from 'dotenv';
 import { pathToFileURL } from 'node:url';
 import { PrismaClient, type TipoMovimiento } from '../src/generated/prisma/client.js';
 import { calcularParametros, clasificarAbc, type ClaseAbc } from '../src/inventario/calculos/formulas.js';
+import { evaluarAlertas } from '../src/alertas/evaluacion.js';
 import { obtenerStock } from '../src/inventario/stock.js';
 
 // ---------- Utilidades deterministas ----------
@@ -492,7 +493,8 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
       cantidad: -6,
       observacion: 'Cajas rotas al descargar en muelle',
       registradoPorId: usuarioId['ALM-LP'],
-      fechaRegistro: F('2027-06-29'),
+      // 28/06: 48 h simuladas al 30/06, más de 24 h (AL07 amarillo).
+      fechaRegistro: F('2027-06-28'),
     },
   });
 
@@ -567,6 +569,8 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
     ],
   });
 
+  // Alertas del estado base, con el mismo motor que usa la API.
+  const alertas = await evaluarAlertas(prisma);
   if (silencioso) return;
   // Tabla de verificación de La Paz, calculada con la misma función que usa GET /api/stock.
   const stockLp = await obtenerStock(prisma, almacenId['CD-LP-01'], FECHA_OPERACION);
@@ -586,6 +590,7 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
       'Estado esperado': ESCENARIO.LP[s.codigo].esperado,
     })),
   );
+  console.log(`Alertas abiertas en el estado base: ${alertas.abiertas}.`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

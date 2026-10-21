@@ -47,7 +47,7 @@ describe('Conteos, ajustes y mermas', () => {
 
   it('merma por rotura (sembrada) se rechaza y un ajuste positivo crea capa al costo de la última', async () => {
     const pendientes = (await como('LOG-01').get('/ajustes?estado=PENDIENTE')).body;
-    const rotura = pendientes.find((a: { motivo: string }) => a.motivo === 'ROTURA' && a.almacen.codigo === 'CD-LP-01');
+    const rotura = pendientes.find((a: { motivo: string; almacen: { codigo: string } }) => a.motivo === 'ROTURA' && a.almacen.codigo === 'CD-LP-01');
     expect((await como('LOG-01').post(`/ajustes/${rotura.id}/rechazar`)).body.estado).toBe('RECHAZADO');
 
     const ultima = (await capasDe(prisma, 'ART-30005', 'CD-LP-01')).at(-1)!;

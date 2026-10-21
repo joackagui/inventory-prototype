@@ -44,7 +44,7 @@ export class ConteosService {
         : null;
       return { conteo, ajuste, par };
     }, TX);
-    emitirCambio(this.eventos, [r.par], 'conteo');
+    await emitirCambio(this.eventos, [r.par], 'conteo');
     return { conteo: r.conteo, ajuste: r.ajuste, toleranciaPct: tolerancia };
   }
 

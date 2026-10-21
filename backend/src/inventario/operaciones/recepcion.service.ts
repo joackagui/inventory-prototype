@@ -49,7 +49,7 @@ export class RecepcionService {
       ]);
       return nueva;
     }, TX);
-    emitirCambio(this.eventos, [capa], 'recepcion');
+    await emitirCambio(this.eventos, [capa], 'recepcion');
     return { ...capa, costoUnitario: Number(capa.costoUnitario) };
   }
 }

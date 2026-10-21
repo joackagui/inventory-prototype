@@ -57,7 +57,7 @@ async function main() {
     () => api('PV-014', 'POST', '/pedidos', { cliente: 'Cliente 002', almacen: 'CD-LP-01', lineas: [{ articulo: 'ART-10048', cantidad: 30 }] }),
     () => '', 'AL11 (pedido pendiente de revisión por falta de stock)');
 
-  await paso(4, `ALM-LP despacha el pedido (FIFO)`, 200, () => api('ALM-LP', 'POST', `/pedidos/${(pedido as { id: number }).id}/despachar`),
+  await paso(4, `ALM-LP despacha el pedido (FIFO)`, 200, () => api('ALM-LP', 'POST', `/pedidos/${(pedido as unknown as { id: number }).id}/despachar`),
     (b: { salidas: { lote: string; cantidad: number; costoUnitario: number }[]; costoTotal: number }) =>
       `${b.salidas.map((s) => `${s.cantidad} × ${s.costoUnitario} (lote ${s.lote})`).join(' + ')} = USD ${b.costoTotal}`);
 
@@ -69,7 +69,7 @@ async function main() {
   const orden = await paso(6, `LOG-01 emite traslado ${p10022.origenSugerido} → La Paz de ${p10022.cantidadSugerida} cajas de ART-10022`, 201,
     () => api('LOG-01', 'POST', '/traslados', { origen: p10022.origenSugerido, destino: 'CD-LP-01', lineas: [{ articulo: 'ART-10022', cantidad: p10022.cantidadSugerida }] }),
     (b: { numero: string; estado: string }) => `${b.numero} ${b.estado}`);
-  const ordenId = (orden as { id: number }).id;
+  const ordenId = (orden as unknown as { id: number }).id;
 
   await paso(7, 'ALM-SC despacha el traslado al tránsito', 200, () => api('ALM-SC', 'POST', `/traslados/${ordenId}/despachar`),
     (b: { estado: string }) => b.estado);

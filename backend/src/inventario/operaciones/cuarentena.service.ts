@@ -44,7 +44,7 @@ export class CuarentenaService {
       ]);
       return { capa: enCuarentena, par };
     }, TX);
-    emitirCambio(this.eventos, [r.par], 'cuarentena');
+    await emitirCambio(this.eventos, [r.par], 'cuarentena');
     return { ...r.capa, costoUnitario: Number(r.capa.costoUnitario) };
   }
 
@@ -66,7 +66,7 @@ export class CuarentenaService {
       ]);
       return { capa: liberada, par };
     }, TX);
-    emitirCambio(this.eventos, [r.par], 'cuarentena_liberada');
+    await emitirCambio(this.eventos, [r.par], 'cuarentena_liberada');
     return { ...r.capa, costoUnitario: Number(r.capa.costoUnitario) };
   }
 

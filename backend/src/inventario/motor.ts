@@ -14,6 +14,8 @@ export interface Pieza {
 }
 
 export const EVENTO_CAMBIO = 'inventario.cambio';
+// Evaluación completa de alertas (cambio de fecha simulada, integración, umbrales).
+export const EVENTO_EVALUAR = 'alertas.evaluar';
 export const masDias = (f: Date, n: number) => new Date(f.getTime() + n * 86_400_000);
 export const aFecha = (s: string) => new Date(`${s.slice(0, 10)}T00:00:00Z`);
 
@@ -145,9 +147,9 @@ export async function ubicacion(tx: Tx, almacenId: number, codigo: string) {
 export const ubicacionPicking = (tx: Tx, almacenId: number, articulo: Pick<Articulo, 'esRetornable'>) =>
   ubicacion(tx, almacenId, articulo.esRetornable ? 'PICK-A' : 'PICK-B');
 
-// Punto de extensión para las alertas: se emite después de confirmar la transacción.
-export function emitirCambio(eventos: EventEmitter2, pares: Par[], operacion: string) {
-  for (const p of new Map(pares.map((x) => [`${x.articuloId}:${x.almacenId}`, x])).values()) {
-    eventos.emit(EVENTO_CAMBIO, { ...p, operacion });
+// Se emite después de confirmar la transacción y se espera a los oyentes (alertas): la respuesta ya las refleja.
+export async function emitirCambio(eventos: EventEmitter2, pares: Par[], operacion: string) {
+  for (const p of new Map(pares.map((x) => [`${x.articuloId}:${x.almacenId}`, { articuloId: x.articuloId, almacenId: x.almacenId }])).values()) {
+    await eventos.emitAsync(EVENTO_CAMBIO, { ...p, operacion });
   }
 }

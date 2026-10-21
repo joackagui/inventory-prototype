@@ -86,7 +86,7 @@ export class PedidosService {
       return { pedido: await tx.pedidoSimulado.findUniqueOrThrow({ where: { id: pedido.id }, include: conLineas }), faltantes, pares: [...totales.keys()].map((articuloId) => ({ articuloId, almacenId: almacen.id })) };
     }, TX);
 
-    emitirCambio(this.eventos, r.pares, r.faltantes.length ? 'pedido_pendiente' : 'reserva');
+    await emitirCambio(this.eventos, r.pares, r.faltantes.length ? 'pedido_pendiente' : 'reserva');
     if (r.faltantes.length) {
       throw new ErrorNegocio(409, 'STOCK_INSUFICIENTE', `No hay disponible suficiente; el pedido ${r.pedido.numero} quedó pendiente de revisión`, { pedidoId: r.pedido.id, numero: r.pedido.numero, faltantes: r.faltantes });
     }
@@ -129,7 +129,7 @@ export class PedidosService {
       await tx.pedidoSimulado.update({ where: { id }, data: { estado: 'DESPACHADO', fechaDespacho: fecha } });
       return { pedido, salidas };
     }, TX);
-    emitirCambio(this.eventos, r.pedido.lineas.map((l) => ({ articuloId: l.articuloId, almacenId: r.pedido.almacenId })), 'despacho');
+    await emitirCambio(this.eventos, r.pedido.lineas.map((l) => ({ articuloId: l.articuloId, almacenId: r.pedido.almacenId })), 'despacho');
     return {
       pedido: r.pedido.numero,
       estado: 'DESPACHADO',
@@ -160,7 +160,7 @@ export class PedidosService {
       }
       return tx.pedidoSimulado.update({ where: { id }, data: { estado: 'CANCELADO' }, include: conLineas });
     }, TX);
-    emitirCambio(this.eventos, pedido.lineas.map((l) => ({ articuloId: l.articuloId, almacenId: pedido.almacenId })), 'cancelacion');
+    await emitirCambio(this.eventos, pedido.lineas.map((l) => ({ articuloId: l.articuloId, almacenId: pedido.almacenId })), 'cancelacion');
     return pedido;
   }
 

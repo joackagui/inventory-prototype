@@ -32,7 +32,7 @@ export class ParametrosService {
       const nivel = dto.nivelServicio ?? (dto.claseAbc ? NIVEL_SERVICIO[clase].nivelServicio : actual.nivelServicio);
       return this.guardar(tx, actual, { demandaDiaria: dto.demandaDiaria, desviacionDemanda: dto.desviacionDemanda, leadTimeDias: dto.leadTimeDias, claseAbc: clase, nivelServicio: nivel }, u, fecha);
     }, TX);
-    emitirCambio(this.eventos, [r], 'parametros');
+    await emitirCambio(this.eventos, [r], 'parametros');
     return r;
   }
 
@@ -53,7 +53,7 @@ export class ParametrosService {
       }
       return { clasificacion, cambios, pares: todos.map((p) => ({ articuloId: p.articuloId, almacenId: p.almacenId })) };
     }, TX);
-    emitirCambio(this.eventos, r.pares, 'abc');
+    await emitirCambio(this.eventos, r.pares, 'abc');
     return { clasificacion: r.clasificacion, cambios: r.cambios };
   }
 
