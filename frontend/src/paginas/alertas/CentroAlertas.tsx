@@ -75,7 +75,7 @@ export function CentroAlertas() {
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filtros rápidos">
         {pildoras.map((p) => (
-          <button key={p.clave} type="button" aria-pressed={activa(p)} onClick={() => setFiltros({ ...filtros, ...p.aplicar })} className={clsx('rounded-full px-4 py-1.5 text-sm font-semibold shadow-tarjeta transition', p.clase, activa(p) ? 'ring-2 ring-acento' : 'opacity-90 hover:opacity-100')} data-testid={`pildora-${p.clave}`}>
+          <button key={p.clave} type="button" aria-pressed={activa(p)} onClick={() => setFiltros({ ...filtros, ...p.aplicar })} className={clsx('rounded-full px-4 py-1.5 text-sm font-semibold shadow-tarjeta transition', p.clase, activa(p) && 'ring-2 ring-acento')} data-testid={`pildora-${p.clave}`}>
             <span className="num">{p.valor === undefined ? '…' : numero(p.valor)}</span> {p.texto}
           </button>
         ))}

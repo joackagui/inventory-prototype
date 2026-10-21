@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useNombreAlmacen } from '../../api/consultas'
 import type { FilaSemaforo, Semaforo as DatosSemaforo } from '../../api/tipos'
 import { EstadoVacio } from '../../componentes/Estados'
-import { SEMAFORO, Semaforo } from '../../componentes/Semaforo'
+import { Semaforo } from '../../componentes/Semaforo'
 import { Esqueleto } from '../../componentes/Tarjeta'
 import { numero } from '../../utils/formato'
 
@@ -49,10 +49,12 @@ export function MatrizSemaforo({ semaforos, cargando, onSeleccionar }: { semafor
                     <button
                       type="button"
                       onClick={() => onSeleccionar(c.almacen, fila)}
-                      aria-label={`${fila.codigo} en ${c.almacen}: ${SEMAFORO[fila.color].texto}, disponible ${numero(fila.disponible)}${fila.alertas.length ? `, alertas ${fila.alertas.join(' ')}` : ', sin alertas'}`}
                       className={clsx('flex w-full min-w-36 items-center gap-3 rounded-xl border border-l-4 border-borde bg-superficie-2 px-3 py-2 text-left transition hover:-translate-y-px hover:shadow-tarjeta', FONDO[fila.color])}
                       data-testid={`celda-${c.almacen}-${fila.codigo}`}
                     >
+                      <span className="sr-only">
+                        {fila.codigo} en {c.almacen}, disponible:
+                      </span>
                       <Semaforo color={fila.color} compacto />
                       <span className="min-w-0 flex-1">
                         <span className="num block text-lg leading-tight font-bold">{numero(fila.disponible)}</span>

@@ -39,10 +39,11 @@ export function LineaTiempoFiestas({ fiestas, fecha, desde = '2027-01-01', hasta
           </span>
         ))}
       </div>
-      <ul className="relative space-y-1.5">
+      <div className="relative">
         <span className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-acento" style={{ left: `calc(14rem + (100% - 14rem) * ${pos(fecha) / 100})` }} data-testid="marcador-fecha" data-pos={pos(fecha).toFixed(2)}>
-          <span className="absolute -top-6 -translate-x-1/2 rounded bg-acento px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap text-white">{formatoFecha(fecha)}</span>
+          <span className="absolute -top-6 -translate-x-1/2 rounded bg-acento px-1.5 py-0.5 text-[11px] font-bold whitespace-nowrap text-sobre-color">{formatoFecha(fecha)}</span>
         </span>
+        <ul className="space-y-1.5">
         {fiestas.map((f) => (
           <li key={f.id}>
             <button
@@ -61,7 +62,8 @@ export function LineaTiempoFiestas({ fiestas, fecha, desde = '2027-01-01', hasta
             </button>
           </li>
         ))}
-      </ul>
+        </ul>
+      </div>
       <ul className="mt-3 ml-56 flex flex-wrap gap-4 text-xs text-suave" aria-label="Leyenda">
         <li className="flex items-center gap-1.5">
           <span className="h-3 w-5 rounded bg-acento-suave" aria-hidden /> Ventana de preparación

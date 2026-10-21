@@ -83,7 +83,7 @@ export function SeccionCapas({ capas, almacenes, vidaUtil }: { capas: Capa[]; al
                           <td className="num py-2 text-right">{dinero(c.valor)}</td>
                           <td className="py-2 pl-3">
                             {c.proximaEnSalir ? (
-                              <span className="rounded-full bg-acento px-2 py-0.5 text-xs font-bold text-white">Próxima en salir</span>
+                              <span className="rounded-full bg-acento px-2 py-0.5 text-xs font-bold text-sobre-color">Próxima en salir</span>
                             ) : c.despachable ? (
                               <span className="text-xs">En cola</span>
                             ) : (

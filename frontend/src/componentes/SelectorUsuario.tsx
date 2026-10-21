@@ -25,7 +25,8 @@ export function SelectorUsuario() {
 
   return (
     <Menu.Root>
-      <Menu.Trigger className="flex items-center gap-3 rounded-xl border border-borde bg-superficie px-3 py-1.5 text-left hover:bg-superficie-2" aria-label="Cambiar de usuario" data-testid="selector-usuario">
+      <Menu.Trigger className="flex items-center gap-3 rounded-xl border border-borde bg-superficie px-3 py-1.5 text-left hover:bg-superficie-2" data-testid="selector-usuario">
+        <span className="sr-only">Cambiar de usuario:</span>
         <span className="grid size-8 place-items-center rounded-full bg-marca text-marca-texto">
           <UserRound aria-hidden className="size-4" />
         </span>

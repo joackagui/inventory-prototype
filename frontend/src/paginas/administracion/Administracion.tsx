@@ -156,7 +156,7 @@ export function Administracion() {
           <Tarjeta titulo="Datos de la demo" subtitulo="Acción de ensayo: vuelve al estado base del 30/06/2027">
             <p className="text-sm">Borra lo hecho en la demo y siembra otra vez el escenario determinista (19 alertas). Requiere DEMO_MODE=true en el backend y escribir RESTABLECER.</p>
             {opera && (
-              <BotonPrimario type="button" className="mt-3 bg-rojo hover:bg-rojo" onClick={() => setRestableciendo(true)}>
+              <BotonPrimario type="button" className="mt-3 bg-rojo text-sobre-color hover:bg-rojo" onClick={() => setRestableciendo(true)}>
                 Restablecer datos
               </BotonPrimario>
             )}

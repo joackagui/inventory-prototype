@@ -25,7 +25,7 @@ export function ColaFifo({ capas }: { capas: Capa[] }) {
             <span className="block truncate font-semibold">{c.lote}</span>
             <span className="num block text-lg leading-tight font-bold">{numero(c.cantidadRestante)}</span>
             <span className="num block text-xs text-suave">{numero(c.vidaRestanteDias)} días de vida</span>
-            {c.proximaEnSalir && <span className="mt-1 inline-block rounded-full bg-acento px-2 py-0.5 text-[11px] font-bold text-white">Próxima en salir</span>}
+            {c.proximaEnSalir && <span className="mt-1 inline-block rounded-full bg-acento px-2 py-0.5 text-[11px] font-bold text-sobre-color">Próxima en salir</span>}
             {!c.despachable && <span className="mt-1 inline-block rounded-full bg-rojo-fondo px-2 py-0.5 text-[11px] font-bold text-rojo">No despachable</span>}
           </div>
         </div>

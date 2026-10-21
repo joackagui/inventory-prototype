@@ -50,7 +50,7 @@ export function Operaciones() {
             className={clsx('flex items-center gap-3 rounded-2xl border bg-superficie p-3 text-left shadow-tarjeta transition hover:-translate-y-px', actual.tipo === tipo ? 'border-acento ring-2 ring-acento' : 'border-borde')}
             data-operacion={tipo}
           >
-            <span className={clsx('grid size-10 shrink-0 place-items-center rounded-xl', actual.tipo === tipo ? 'bg-acento text-white' : 'bg-acento-suave text-acento')}>
+            <span className={clsx('grid size-10 shrink-0 place-items-center rounded-xl', actual.tipo === tipo ? 'bg-acento text-sobre-color' : 'bg-acento-suave text-acento')}>
               <Icono aria-hidden className="size-5" />
             </span>
             <span className="min-w-0">

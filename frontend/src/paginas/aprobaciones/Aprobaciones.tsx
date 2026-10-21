@@ -173,7 +173,7 @@ export function Aprobaciones() {
                         <span className="flex shrink-0 flex-col items-end gap-1 text-xs">
                           {f.valor !== undefined && <span className={clsx('num font-semibold', f.valor < 0 ? 'text-rojo' : 'text-verde')}>{f.valor < 0 ? '−' : '+'}{dinero(Math.abs(f.valor))}</span>}
                           {f.antiguedadDias !== undefined && (
-                            <span className={clsx('rounded-full px-2 py-0.5 font-semibold', f.alerta ? (f.alerta.color === 'ROJO' ? 'pulso-rojo bg-rojo text-white' : 'bg-amarillo-fondo text-amarillo') : 'bg-superficie-2 text-suave')} title={f.alerta ? `${f.alerta.codigo}: ${f.alerta.mensaje}` : undefined}>
+                            <span className={clsx('rounded-full px-2 py-0.5 font-semibold', f.alerta ? (f.alerta.color === 'ROJO' ? 'pulso-rojo bg-rojo text-sobre-color' : 'bg-amarillo-fondo text-amarillo') : 'bg-superficie-2 text-suave')} title={f.alerta ? `${f.alerta.codigo}: ${f.alerta.mensaje}` : undefined}>
                               {f.alerta && `${f.alerta.codigo} · `}
                               {antiguedad(f.antiguedadDias)}
                             </span>

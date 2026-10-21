@@ -42,7 +42,7 @@ export function DialogoRestablecer({ abierto, onCerrar, onConfirmar, cargando }:
             <Dialog.Close className="rounded-lg border border-borde px-4 py-2 font-medium" disabled={cargando}>
               Cancelar
             </Dialog.Close>
-            <BotonPrimario type="button" className="bg-rojo hover:bg-rojo" disabled={!listo} cargando={cargando} onClick={onConfirmar}>
+            <BotonPrimario type="button" className="bg-rojo text-sobre-color hover:bg-rojo" disabled={!listo} cargando={cargando} onClick={onConfirmar}>
               Restablecer datos
             </BotonPrimario>
           </div>
