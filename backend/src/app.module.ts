@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { EfectoAlertasInterceptor } from './alertas/efecto.js';
 import { AlertasModule } from './alertas/alertas.module.js';
 import { AlmacenesModule } from './almacenes/almacenes.module.js';
 import { AnalisisModule } from './analisis/analisis.module.js';
@@ -26,6 +27,9 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     AlmacenesModule,
     UsuariosModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: UsuarioGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: UsuarioGuard },
+    { provide: APP_INTERCEPTOR, useClass: EfectoAlertasInterceptor },
+  ],
 })
 export class AppModule {}
