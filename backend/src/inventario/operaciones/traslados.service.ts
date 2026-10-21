@@ -101,12 +101,12 @@ export class TrasladosService {
       await registrar(tx, movs);
       return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado: 'EN_TRANSITO', fechaDespacho: fecha }, include: detalle }), pares };
     }, TX);
-    emitirCambio(this.eventos, r.pares, 'traslado_despacho');
+    await emitirCambio(this.eventos, r.pares, 'traslado_despacho');
     return r.orden;
   }
 
-  // Recepción (R06 del destino). La diferencia (despachado − recibido) se registra primero como MERMA en el tránsito;
-  // luego lo recibido pasa al destino (dañado → CUAR-01). Un traslado no se recibe dos veces.
+  // Recepción (R06 del destino). La diferencia (despachado − recibido) queda registrada primero como ajuste PENDIENTE
+  // sobre el stock en tránsito (R07 decide); lo recibido pasa al destino (dañado → CUAR-01). Un traslado no se recibe dos veces.
   async recibir(id: number, dto: RecepcionTrasladoDto, u: UsuarioSesion) {
     const fecha = await this.simulacion.fechaOperacion();
     const r = await this.prisma.$transaction(async (tx) => {
@@ -132,14 +132,25 @@ export class TrasladosService {
         await tx.lineaTraslado.update({ where: { id: l.id }, data: { cantidadRecibida: recibida.cantidadRecibida, estadoRecepcion: recibida.estado ?? 'CONFORME', observacion: recibida.observacion ?? (diferencia ? `Diferencia de ${diferencia}` : null) } });
         const base = { articuloId: l.articuloId, fechaOperacion: fecha, usuarioId: u.id, documentoTipo: 'OrdenTraslado', documentoId: id };
         if (diferencia > 0) {
-          for (const p of await consumir(tx, { articuloId: l.articuloId, almacenId: transitoId, cantidad: diferencia, ordenTrasladoId: id })) {
-            movs.push({ ...base, tipo: 'MERMA', almacenId: transitoId, ubicacionId: enRuta.id, capaId: p.capa.id, cantidad: -p.cantidad, costoUnitario: p.capa.costoUnitario, motivo: `Diferencia en recepción ${orden.numero}` });
-          }
+          await tx.ajusteInventario.create({
+            data: {
+              articuloId: l.articuloId,
+              almacenId: transitoId,
+              ubicacionId: enRuta.id,
+              motivo: 'DIFERENCIA_RECEPCION',
+              cantidad: -diferencia,
+              observacion: `Diferencia en recepción ${orden.numero}: despachado ${l.cantidadDespachada}, recibido ${recibida.cantidadRecibida}`,
+              ordenTrasladoId: id,
+              registradoPorId: u.id,
+              fechaRegistro: fecha,
+            },
+          });
         }
         if (recibida.cantidadRecibida > 0) {
           const destinoUbic = danado ? cuarentena : await ubicacionPicking(tx, orden.destinoId, l.articulo);
           for (const p of await consumir(tx, { articuloId: l.articuloId, almacenId: transitoId, cantidad: recibida.cantidadRecibida, ordenTrasladoId: id })) {
-            const nueva = await copiarCapa(tx, p.capa, { almacenId: orden.destinoId, ubicacionId: destinoUbic.id, cantidad: p.cantidad, fechaEntrada: fecha, estado: danado ? 'CUARENTENA' : 'DISPONIBLE' });
+            // La capa recibida recuerda su traslado (AL09 sigue la mercadería dañada hasta que sale de cuarentena).
+            const nueva = await copiarCapa(tx, p.capa, { almacenId: orden.destinoId, ubicacionId: destinoUbic.id, cantidad: p.cantidad, fechaEntrada: fecha, estado: danado ? 'CUARENTENA' : 'DISPONIBLE', ordenTrasladoId: id });
             const mov = { ...base, costoUnitario: p.capa.costoUnitario, motivo: `Recepción traslado ${orden.numero}` };
             movs.push({ ...mov, tipo: 'TRASLADO_SALIDA', almacenId: transitoId, ubicacionId: enRuta.id, capaId: p.capa.id, cantidad: -p.cantidad });
             movs.push({ ...mov, tipo: 'TRASLADO_ENTRADA', almacenId: orden.destinoId, ubicacionId: destinoUbic.id, capaId: nueva.id, cantidad: p.cantidad });
@@ -150,7 +161,7 @@ export class TrasladosService {
       const estado: EstadoTraslado = conDiferencia ? 'CON_DIFERENCIA' : 'RECIBIDA';
       return { orden: await tx.ordenTraslado.update({ where: { id }, data: { estado, fechaRecepcion: fecha }, include: detalle }), pares };
     }, TX);
-    emitirCambio(this.eventos, r.pares, 'traslado_recepcion');
+    await emitirCambio(this.eventos, r.pares, 'traslado_recepcion');
     return r.orden;
   }
 

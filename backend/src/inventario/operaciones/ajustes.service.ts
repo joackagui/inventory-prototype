@@ -5,7 +5,7 @@ import type { EstadoAjuste, MotivoAjuste, TipoMovimiento } from '../../generated
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SimulacionService } from '../../simulacion/simulacion.service.js';
 import { exigirAlmacen, type UsuarioSesion } from '../../usuarios/autorizacion.js';
-import { almacenPlanta, articuloPorCodigo, bloquear, consumir, type DatosMovimiento, emitirCambio, masDias, registrar, saldo, type Tx, ubicacionPicking } from '../motor.js';
+import { almacenPlanta, articuloPorCodigo, bloquear, consumir, copiarCapa, type DatosMovimiento, emitirCambio, masDias, type Par, registrar, saldo, type Tx, ubicacionPicking } from '../motor.js';
 import { TX } from './comun.js';
 import type { AjusteDto } from './ajustes.dto.js';
 
@@ -17,6 +17,7 @@ const TIPO_POR_MOTIVO: Record<MotivoAjuste, TipoMovimiento> = {
   DIFERENCIA_CONTEO: 'AJUSTE',
   ERROR_REGISTRO: 'AJUSTE',
   PROMOCION: 'BONIFICACION',
+  DIFERENCIA_RECEPCION: 'MERMA',
 };
 
 const detalle = {
@@ -37,6 +38,7 @@ export class AjustesService {
   // Registro (R06): queda PENDIENTE; no mueve stock hasta que R07 lo apruebe.
   async crear(dto: AjusteDto, u: UsuarioSesion) {
     const fecha = await this.simulacion.fechaOperacion();
+    if (dto.motivo === 'DIFERENCIA_RECEPCION') throw new ErrorNegocio(400, 'MOTIVO_RESERVADO', 'La diferencia en recepción se registra al recibir el traslado');
     return this.prisma.$transaction(async (tx) => {
       const almacen = await almacenPlanta(tx, dto.almacen);
       exigirAlmacen(u, almacen.id);
@@ -61,17 +63,19 @@ export class AjustesService {
     const r = await this.prisma.$transaction(async (tx) => {
       const ajuste = await this.pendiente(tx, id, u);
       const par = { articuloId: ajuste.articuloId, almacenId: ajuste.almacenId };
-      await bloquear(tx, [par]);
+      const candado = await this.candado(tx, par);
+      await bloquear(tx, [candado]);
       if ((await tx.ajusteInventario.findUniqueOrThrow({ where: { id } })).estado !== 'PENDIENTE') throw this.yaResuelto();
       const tipo = TIPO_POR_MOTIVO[ajuste.motivo];
       const base = { tipo, ...par, fechaOperacion: fecha, usuarioId: u.id, motivo: `${ajuste.motivo.replaceAll('_', ' ').toLowerCase()} (ajuste ${id})`, documentoTipo: 'AjusteInventario', documentoId: id };
       const movs: DatosMovimiento[] = [];
       if (ajuste.cantidad < 0) {
-        for (const p of await consumir(tx, { ...par, cantidad: -ajuste.cantidad, capaId: ajuste.capaId ?? undefined })) {
+        // DIFERENCIA_RECEPCION: sale del tránsito de su traslado como pérdida, al costo FIFO de su capa.
+        for (const p of await consumir(tx, { ...par, cantidad: -ajuste.cantidad, capaId: ajuste.capaId ?? undefined, ordenTrasladoId: ajuste.ordenTrasladoId ?? undefined })) {
           movs.push({ ...base, ubicacionId: p.capa.ubicacionId, capaId: p.capa.id, cantidad: -p.cantidad, costoUnitario: p.capa.costoUnitario });
         }
         const s = await saldo(tx, par, fecha, 0);
-        if (s.disponible < 0) throw new ErrorNegocio(409, 'AJUSTE_AFECTA_RESERVAS', 'La baja dejaría menos stock que lo reservado; cancela o reduce pedidos primero', { reservado: s.reservado, fisicoDespues: s.fisico });
+        if (candado.almacenId === par.almacenId && s.disponible < 0) throw new ErrorNegocio(409, 'AJUSTE_AFECTA_RESERVAS', 'La baja dejaría menos stock que lo reservado; cancela o reduce pedidos primero', { reservado: s.reservado, fisicoDespues: s.fisico });
       } else {
         const ultima = await tx.capaFifo.findFirst({ where: par, orderBy: [{ fechaEntrada: 'desc' }, { id: 'desc' }] });
         const ubic = await tx.ubicacion.findUniqueOrThrow({ where: { id: ajuste.ubicacionId } });
@@ -94,9 +98,9 @@ export class AjustesService {
       }
       await registrar(tx, movs);
       const aprobado = await tx.ajusteInventario.update({ where: { id }, data: { estado: 'APROBADO', aprobadoPorId: u.id, fechaResolucion: fecha }, include: detalle });
-      return { aprobado, par, movs };
+      return { aprobado, par: candado, movs };
     }, TX);
-    emitirCambio(this.eventos, [r.par], 'ajuste_aprobado');
+    await emitirCambio(this.eventos, [r.par], 'ajuste_aprobado');
     return { ...r.aprobado, valor: Math.round(r.movs.reduce((s, m) => s + m.cantidad * Number(m.costoUnitario), 0) * 100) / 100 };
   }
 
@@ -104,11 +108,25 @@ export class AjustesService {
     const fecha = await this.simulacion.fechaOperacion();
     const r = await this.prisma.$transaction(async (tx) => {
       const ajuste = await this.pendiente(tx, id, u);
-      await bloquear(tx, [{ articuloId: ajuste.articuloId, almacenId: ajuste.almacenId }]);
+      const par = { articuloId: ajuste.articuloId, almacenId: ajuste.almacenId };
+      const candado = await this.candado(tx, par);
+      await bloquear(tx, [candado]);
       if ((await tx.ajusteInventario.findUniqueOrThrow({ where: { id } })).estado !== 'PENDIENTE') throw this.yaResuelto();
+      // Diferencia en recepción rechazada: no hubo pérdida; la mercadería pasa del tránsito al destino y R06 la recuenta.
+      if (ajuste.motivo === 'DIFERENCIA_RECEPCION') {
+        const pick = await ubicacionPicking(tx, candado.almacenId, ajuste.articulo);
+        const movs: DatosMovimiento[] = [];
+        for (const p of await consumir(tx, { ...par, cantidad: -ajuste.cantidad, ordenTrasladoId: ajuste.ordenTrasladoId! })) {
+          const nueva = await copiarCapa(tx, p.capa, { almacenId: candado.almacenId, ubicacionId: pick.id, cantidad: p.cantidad, fechaEntrada: fecha, ordenTrasladoId: ajuste.ordenTrasladoId });
+          const base = { articuloId: par.articuloId, costoUnitario: p.capa.costoUnitario, fechaOperacion: fecha, usuarioId: u.id, motivo: `Diferencia rechazada (ajuste ${id}): entra al destino para recuento`, documentoTipo: 'AjusteInventario', documentoId: id };
+          movs.push({ ...base, tipo: 'TRASLADO_SALIDA', almacenId: par.almacenId, ubicacionId: p.capa.ubicacionId, capaId: p.capa.id, cantidad: -p.cantidad });
+          movs.push({ ...base, tipo: 'TRASLADO_ENTRADA', almacenId: candado.almacenId, ubicacionId: pick.id, capaId: nueva.id, cantidad: p.cantidad });
+        }
+        await registrar(tx, movs);
+      }
       return tx.ajusteInventario.update({ where: { id }, data: { estado: 'RECHAZADO', aprobadoPorId: u.id, fechaResolucion: fecha }, include: detalle });
     }, TX);
-    emitirCambio(this.eventos, [r], 'ajuste_rechazado');
+    await emitirCambio(this.eventos, [r], 'ajuste_rechazado');
     return r;
   }
 
@@ -122,6 +140,12 @@ export class AjustesService {
     if (ajuste.estado !== 'PENDIENTE') throw this.yaResuelto();
     if (ajuste.registradoPorId === u.id) throw new ErrorNegocio(403, 'AUTOAPROBACION', 'Quien registra un ajuste o merma no puede aprobarlo ni rechazarlo');
     return ajuste;
+  }
+
+  // El stock en tránsito se protege con el candado del almacén destino.
+  private async candado(tx: Tx, par: Par): Promise<Par> {
+    const almacen = await tx.almacen.findUniqueOrThrow({ where: { id: par.almacenId }, include: { almacenDestino: true } });
+    return almacen.tipo === 'TRANSITO' ? { articuloId: par.articuloId, almacenId: almacen.almacenDestino!.id } : par;
   }
 
   private yaResuelto() {
