@@ -25,9 +25,20 @@ src/
   diseno/Layout.tsx  barra lateral, barra superior y RequiereRol
   componentes/       Semaforo, Tarjeta/Esqueleto, Estados (vacío y error), Kpi, ControlFecha + RelojSimulado,
                      SelectorAlmacen, SelectorUsuario, Campana, TemaToggle, PanelLateral
-  paginas/           Tablero (tablero/*), Proximamente, SinAcceso
+  paginas/
+    tablero/         Tablero: KPIs, matriz semáforo, gráficos, alertas que requieren acción, vista del preventista
+    alertas/         Centro de alertas: píldoras, filtros (familias.ts), FilaAlerta, PanelAlerta (medidor, historial,
+                     atender), Umbrales (edición validada + bitácora)
+    articulos/       Articulos (tabla) y Ficha: SeccionPosicion, SeccionParametros (fórmulas + diálogo con vista
+                     previa), SeccionCapas (cola FIFO), SeccionKardex (serie + kardex + CSV)
+    Proximamente     recibe y muestra los parámetros de la URL (?accion=…&articulo=…) hasta que la pantalla exista
+    SinAcceso
   utils/formato.ts   números 1,260 · fechas dd/mm/aaaa · USD 1,234.56
-e2e/humo.spec.ts     prueba de humo con Playwright (+ capturas en docs/capturas)
+e2e/
+  comun.ts           sembrar(), abrir(página, ruta, usuario, tema), irA(), vigilancia de errores de consola
+  humo.spec.ts       tablero, fecha simulada, cambio a PV-014
+  alertas-articulos.spec.ts  Centro de alertas y ficha del artículo
+  capturas.spec.ts   @capturas: solo con `npm run capturas`
 ```
 
 ## Tokens de diseño
@@ -52,6 +63,7 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
   - probado a 1366×768 y 1920×1080.
 
 ## Convenciones
+- **Almacenes:** siempre de `useAlmacenes()` (GET /api/almacenes, solo plantas: código, nombre corto y largo, sigla) y `useNombreAlmacen()`; nunca códigos fijos.
 - **Datos:** siempre con un hook de `api/consultas.ts`. La `queryKey` empieza por el recurso y lleva el usuario (`['tablero', usuario, almacen]`), así al cambiar de usuario todo se vuelve a pedir con sus permisos.
 - **Mutaciones:** `useMutation` con `api(...)`. El `MutationCache` muestra el error y, si sale bien, invalida todas las consultas (cualquier operación cambia stock y alertas). El cambio de fecha muestra cuántas alertas cambiaron (dato que devuelve el backend).
 - **Errores:** los muestra `QueryCache.onError` con un aviso en español; dentro de la pantalla, `EstadoError` con «Reintentar».
@@ -66,9 +78,18 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 3. En `App.tsx`, renderiza tu componente en lugar de `<Proximamente>` para esa ruta. La sección ya existe en `sesion/permisos.ts`; ajusta sus `roles` si hace falta y actualiza docs/PERMISOS.md.
 4. Agrega una prueba de componente (`*.test.tsx`) si tiene lógica de presentación, y un paso en `e2e/humo.spec.ts` si es clave para la demo.
 
+## Componentes visuales clave
+- **`Medidor`:** valor medido frente a los umbrales amarillo y rojo de una alerta, con tramos de color y una marca. Usa la misma regla que el backend (≤ cuando menor es peor, > en el resto). El dato `medicion` lo calcula el backend.
+- **`BarraPosicion`:** bullet chart con disponible, tránsito (rayado) y reservado apilados, y marcas de SS (rojo), ROP (amarillo) y Máx (azul).
+- **`BarraFuncion`:** el stock por función (seguridad, ciclo, tránsito, estacional) como barra segmentada.
+- **`VidaRestante`:** barra de vida de una capa (verde > 30 días, amarillo 15–30, rojo < 15) con `role="meter"`.
+- **`ColaFifo`:** esquema Entrada → capas (de la más nueva a la más antigua) → Salida. Marca la «Próxima en salir» con un anillo y las no despachables con borde punteado.
+
 ## Pruebas
 - `npm --prefix frontend test`: Vitest + Testing Library con happy-dom (formateadores, semáforo, control de fecha).
-- `npm --prefix frontend run test:humo`: Playwright con el Chromium ya instalado en la caché de Playwright (no descarga navegadores).
-  - Levanta backend y frontend si no están corriendo y vuelve a sembrar la base.
-  - Comprueba: las 19 alertas con ALM-LP y LOG-01, el cambio de fecha +5 días, la vista de PV-014 y que no haya errores en la consola.
-  - Guarda las capturas en `docs/capturas/`.
+- `npm --prefix frontend test`: Vitest también cubre los filtros de alertas, el medidor, la barra de posición, la cola FIFO y la vida restante.
+- `npm run test:humo`: Playwright con el Chromium ya instalado en la caché de Playwright (no descarga navegadores).
+  - Levanta backend y frontend si no están corriendo; cada archivo vuelve a sembrar la base.
+  - Comprueba el tablero, el Centro de alertas, la ficha, los permisos y que no haya errores en la consola.
+  - **No** toca `docs/capturas/`.
+- `npm run capturas`: regenera las capturas de `docs/capturas/` (tablero, alertas con el panel abierto y la ficha del ART-10021 por secciones, en claro y oscuro). Ejecútalo solo cuando quieras actualizar las imágenes versionadas.

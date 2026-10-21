@@ -40,7 +40,12 @@ Abre <http://localhost:5173>: se abre el **Tablero** como `LOG-01` (Coordinador 
 
 La API con ejemplos está en <http://localhost:3000/api/docs>.
 
-Capturas del tablero en [docs/capturas](docs/capturas). Cómo está hecho el frontend: [docs/FRONTEND.md](docs/FRONTEND.md).
+Pantallas disponibles:
+- **Tablero:** KPIs y semáforo por artículo y almacén.
+- **Centro de alertas** (`/alertas`): filtros, detalle con medidor, atención y umbrales.
+- **Artículos** (`/articulos`) y **ficha del artículo** (`/articulos/ART-10021`): posición de stock, parámetros con fórmulas y edición con vista previa, capas FIFO y kardex.
+
+Capturas en [docs/capturas](docs/capturas). Cómo está hecho el frontend: [docs/FRONTEND.md](docs/FRONTEND.md).
 
 ## Puertos
 
@@ -62,7 +67,8 @@ Capturas del tablero en [docs/capturas](docs/capturas). Cómo está hecho el fro
 | `npm run db:reset`     | Borra la base, migra, siembra y verifica         |
 | `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
 | `npm test`             | Tests del backend (unitarios e integración, base `inventario_test`) y del frontend |
-| `npm run test:humo`    | Prueba de humo del navegador con Playwright y capturas en docs/capturas |
+| `npm run test:humo`    | Prueba de humo del navegador con Playwright (no modifica las capturas) |
+| `npm run capturas`     | Regenera las capturas de docs/capturas |
 | `npm run demo:api`     | Ensayo de la demo por HTTP (con el backend en marcha) |
 | `npm run demo:alertas` | Ensayo de la demo de alertas (con el backend en marcha) |
 | `npm run backend:dev`  | Backend NestJS con recarga automática            |

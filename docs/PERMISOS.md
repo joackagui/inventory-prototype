@@ -14,8 +14,9 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 |---|---|---|---|---|---|---|---|
 | `GET /api/salud`, `GET /api/usuarios`, `/api/docs` | público | público | público | público | público | público | público |
 | `GET /api/yo`, `/api/almacenes`, `/api/fiestas`, `/api/simulacion/fecha`, `/api/pedidos` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `GET /api/articulos/estado`, `GET /api/articulos/:codigo/resumen` | ✔ solo disponible/agotado | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `GET /api/stock?almacenId=` | ✔ solo disponible/agotado, sin costos | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| `GET /api/articulos`, `/articulos/:codigo/capas`, `/articulos/:codigo/kardex`, `/api/abc`, `/api/movimientos`, `/api/traslados`, `/api/traslados/propuesta`, `/api/ajustes`, `/api/conteos`, `/api/envases/saldos`, `/api/configuracion` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `GET /api/articulos`, `/articulos/:codigo/capas`, `/articulos/:codigo/kardex`, `/articulos/:codigo/serie`, `/alertas/umbrales/detalle`, `/api/abc`, `/api/movimientos`, `/api/traslados`, `/api/traslados/propuesta`, `/api/ajustes`, `/api/conteos`, `/api/envases/saldos`, `/api/configuracion` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `POST /api/pedidos` (reserva) | ✔ | — | — | — | — | — | — |
 | `POST /api/pedidos/:id/cancelar` | ✔ | — | — | ✔¹ | ✔ | — | — |
 | `POST /api/pedidos/:id/despachar` | — | — | — | ✔¹ | ✔ | — | — |
@@ -29,6 +30,7 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 | `POST /api/traslados` (emitir) | — | — | — | — | ✔ | — | — |
 | `POST /api/traslados/:id/despachar` | — | — | — | ✔ origen | ✔ | — | — |
 | `POST /api/traslados/:id/recibir` | — | — | — | ✔ destino | ✔ | — | — |
+| `POST /api/parametros/:articulo/:almacen/simular` (vista previa, no guarda) | — | — | — | — | ✔ | — | — |
 | `PUT /api/parametros/:articulo/:almacen`, `POST /api/abc/recalcular` | — | — | — | — | ✔ | — | — |
 | `PUT /api/configuracion/:clave` (umbrales, tasas, tolerancia) | — | — | — | — | ✔ | — | — |
 | `PUT /api/simulacion/fecha`, `POST /api/simulacion/avanzar`, `POST /api/simulacion/restablecer` | — | — | — | — | ✔ | — | ✔ |
@@ -44,6 +46,8 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 | `POST /api/integracion/eventos/:id/reprocesar` | — | — | — | — | — | — | ✔ |
 
 Notas:
+- **Alertas para R06:** `GET /api/alertas` y `/api/alertas/resumen` devuelven solo su almacén (el filtro `almacen` no lo saca de ahí), y `GET /api/alertas/:id` de otro almacén responde 403 `ALMACEN_AJENO`.
+- **Frontend:** el menú y las pantallas siguen esta tabla. R01 entra a Artículos y a la ficha, pero solo ve la disponibilidad. La pestaña Umbrales del Centro de alertas la edita R07, la leen R08 y R09, y la bitácora de umbrales la ven R07 y R09.
 - **R03 Asistente de pedidos (`AST-01`):** consulta (como los roles de lectura) y solo atiende AL11. No registra operaciones.
 - **Diferencia al recibir un traslado:** queda como ajuste PENDIENTE con motivo `DIFERENCIA_RECEPCION` sobre el stock en tránsito, registrado por el R06 del destino. Solo R07 lo aprueba (la cantidad sale del tránsito como merma al costo FIFO) o lo rechaza (la mercadería pasa al destino y el R06 la recuenta). Este motivo no se puede registrar a mano.
 - **Atender una alerta:** puede hacerlo uno de sus roles responsables (ver docs/ALERTAS.md) o R07. Un R06 solo atiende alertas de su almacén. R08 solo lee. AL11 la atiende R03 (`AST-01`) o R07.
