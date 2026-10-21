@@ -25,9 +25,9 @@ const SECCIONES = [
 // Acciones rápidas: enlazan a /operaciones con la acción y el artículo en la URL (pantalla del siguiente paso).
 const ACCIONES: { accion: string; texto: string; icono: typeof Truck; roles: Rol[] }[] = [
   { accion: 'recepcion', texto: 'Registrar recepción', icono: PackagePlus, roles: ['R06', 'R07'] },
-  { accion: 'traslado', texto: 'Proponer traslado', icono: Truck, roles: ['R07'] },
+  { accion: 'traslados', texto: 'Proponer traslado', icono: Truck, roles: ['R07'] },
   { accion: 'conteo', texto: 'Registrar conteo', icono: ClipboardList, roles: ['R06', 'R07'] },
-  { accion: 'pedido', texto: 'Crear pedido', icono: ShoppingCart, roles: ['R01'] },
+  { accion: 'pedidos', texto: 'Crear pedido', icono: ShoppingCart, roles: ['R01', 'R07'] },
 ]
 
 export function Ficha() {
@@ -87,7 +87,7 @@ export function Ficha() {
         )}
         <div className="flex w-full flex-wrap gap-2">
           {ACCIONES.filter((a) => a.roles.includes(rol)).map(({ accion, texto, icono: Icono }) => (
-            <Link key={accion} to={`/operaciones?accion=${accion}&articulo=${articulo.codigo}${almacenAccion ? `&almacen=${almacenAccion}` : ''}`} className="inline-flex items-center gap-2 rounded-xl border border-borde px-3.5 py-2 text-sm font-semibold hover:bg-superficie-2">
+            <Link key={accion} to={`/operaciones?tipo=${accion}&articulo=${articulo.codigo}${almacenAccion ? `&almacen=${almacenAccion}` : ''}`} className="inline-flex items-center gap-2 rounded-xl border border-borde px-3.5 py-2 text-sm font-semibold hover:bg-superficie-2">
               <Icono aria-hidden className="size-4" /> {texto}
             </Link>
           ))}

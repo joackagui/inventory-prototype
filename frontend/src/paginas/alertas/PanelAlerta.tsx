@@ -62,16 +62,22 @@ const valorLegible = (v: unknown) => (typeof v === 'number' ? numero(v, Number.i
 
 // Enlace al registro que origina la alerta.
 function origen(a: AlertaDetalle): { texto: string; ruta: string } | null {
-  const q = (accion: string) => `/operaciones?accion=${accion}&id=${a.referenciaId}${a.articulo ? `&articulo=${a.articulo.codigo}` : ''}${a.almacen ? `&almacen=${a.almacen.codigo}` : ''}`
+  const q = (tipo: string) => `/operaciones?tipo=${tipo}&id=${a.referenciaId}${a.articulo ? `&articulo=${a.articulo.codigo}` : ''}${a.almacen ? `&almacen=${a.almacen.codigo}` : ''}`
   switch (a.referenciaTipo) {
     case 'OrdenTraslado':
-      return { texto: 'Ver traslado', ruta: q('traslado') }
+      return { texto: 'Ver traslado', ruta: q('traslados') }
     case 'AjusteInventario':
       return { texto: 'Ver ajuste', ruta: `/aprobaciones?ajuste=${a.referenciaId}` }
+    case 'ConteoFisico':
+      return { texto: 'Ver conteos', ruta: q('conteo') }
     case 'PedidoSimulado':
-      return { texto: 'Ver pedido', ruta: q('pedido') }
+      return { texto: 'Ver pedido', ruta: q('pedidos') }
     case 'Cliente':
-      return { texto: 'Ver envases del cliente', ruta: q('envases') }
+      return { texto: 'Ver envases del cliente', ruta: `/operaciones?tipo=envases&cliente=${encodeURIComponent(String(a.datos.cliente))}${a.articulo ? `&articulo=${a.articulo.codigo}` : ''}` }
+    case 'CapaFifo':
+      return { texto: 'Ver cuarentena', ruta: q('cuarentena') }
+    case 'Promocion':
+      return { texto: 'Ver promociones', ruta: q('promociones') }
     case 'EventoIntegracion':
       return { texto: 'Ver evento de integración', ruta: `/administracion?evento=${a.referenciaId}` }
     case 'Fiesta':

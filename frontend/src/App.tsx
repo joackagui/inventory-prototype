@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout, RequiereRol } from './diseno/Layout'
 import { CentroAlertas } from './paginas/alertas/CentroAlertas'
+import { Aprobaciones } from './paginas/aprobaciones/Aprobaciones'
+import { Operaciones } from './paginas/operaciones/Operaciones'
 import { Articulos } from './paginas/articulos/Articulos'
 import { Ficha } from './paginas/articulos/Ficha'
 import { Proximamente } from './paginas/Proximamente'
@@ -8,7 +10,7 @@ import { Tablero } from './paginas/tablero/Tablero'
 import { SECCIONES } from './sesion/permisos'
 
 // Pantallas construidas; el resto de las secciones muestra «Próximamente».
-const PANTALLAS: Record<string, () => React.JSX.Element> = { '/tablero': Tablero, '/alertas': CentroAlertas, '/articulos': Articulos }
+const PANTALLAS: Record<string, () => React.JSX.Element> = { '/tablero': Tablero, '/alertas': CentroAlertas, '/articulos': Articulos, '/operaciones': Operaciones, '/aprobaciones': Aprobaciones }
 
 export default function App() {
   const articulos = SECCIONES.find((s) => s.ruta === '/articulos')!
