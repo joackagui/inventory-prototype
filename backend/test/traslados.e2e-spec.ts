@@ -79,7 +79,7 @@ describe('Traslados entre plantas', () => {
     await como('ALM-CB').post(`/traslados/${orden.body.id}/recibir`, { lineas: [{ articulo: 'ART-10021', cantidadRecibida: 90 }] });
     expect(await stockDe(como, 'CD-CB-01', 'ART-10021')).toMatchObject({ disponible: 730, enTransito: 10 });
     const ajuste = await prisma.ajusteInventario.findFirstOrThrow({ where: { ordenTrasladoId: orden.body.id } });
-    expect((await como('LOG-01').post(`/ajustes/${ajuste.id}/rechazar`)).body.estado).toBe('RECHAZADO');
+    expect((await como('LOG-01').post(`/ajustes/${ajuste.id}/rechazar`, { comentario: 'No corresponde' })).body.estado).toBe('RECHAZADO');
     expect(await stockDe(como, 'CD-CB-01', 'ART-10021')).toMatchObject({ disponible: 740, enTransito: 0 });
     expect((await como('ALM-CB').post('/ajustes', { almacen: 'CD-CB-01', articulo: 'ART-10021', cantidad: -1, motivo: 'DIFERENCIA_RECEPCION' })).body.codigo).toBe('MOTIVO_RESERVADO');
   });

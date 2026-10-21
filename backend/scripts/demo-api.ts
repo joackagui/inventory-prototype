@@ -58,8 +58,8 @@ async function main() {
     () => '', 'AL11 (pedido pendiente de revisión por falta de stock)');
 
   await paso(4, `ALM-LP despacha el pedido (FIFO)`, 200, () => api('ALM-LP', 'POST', `/pedidos/${(pedido as unknown as { id: number }).id}/despachar`),
-    (b: { salidas: { lote: string; cantidad: number; costoUnitario: number }[]; costoTotal: number }) =>
-      `${b.salidas.map((s) => `${s.cantidad} × ${s.costoUnitario} (lote ${s.lote})`).join(' + ')} = USD ${b.costoTotal}`);
+    (b: { capasConsumidas: { lote: string; cantidad: number; costoUnitario: number }[]; costoTotal: number }) =>
+      `${b.capasConsumidas.map((s) => `${s.cantidad} × ${s.costoUnitario} (lote ${s.lote})`).join(' + ')} = USD ${b.costoTotal}`);
 
   const propuesta = await paso(5, 'LOG-01 consulta la propuesta de traslados para La Paz', 200, () => api('LOG-01', 'GET', '/traslados/propuesta?almacenId=CD-LP-01'),
     (b: { articulo: string; trasladoPropuesto: number; origenSugerido: string | null; cantidadSugerida: number }[]) =>

@@ -28,7 +28,7 @@ describe('Conteos, ajustes y mermas', () => {
     const mov = await prisma.movimiento.findFirstOrThrow({ where: { documentoTipo: 'AjusteInventario', documentoId: id } });
     expect(mov).toMatchObject({ tipo: 'AJUSTE', cantidad: -6 });
     // Un ajuste resuelto no se vuelve a modificar.
-    expect((await como('LOG-01').post(`/ajustes/${id}/rechazar`)).body.codigo).toBe('AJUSTE_YA_RESUELTO');
+    expect((await como('LOG-01').post(`/ajustes/${id}/rechazar`, { comentario: 'No corresponde' })).body.codigo).toBe('AJUSTE_YA_RESUELTO');
   });
 
   it('conteo dentro de la tolerancia no pide recuento', async () => {
@@ -42,13 +42,13 @@ describe('Conteos, ajustes y mermas', () => {
     const propio = await como('LOG-01').post('/ajustes', { almacen: 'CD-CB-01', articulo: 'ART-20011', cantidad: -2, motivo: 'ROTURA' });
     expect(propio.status).toBe(201);
     expect((await como('LOG-01').post(`/ajustes/${propio.body.id}/aprobar`)).body.codigo).toBe('AUTOAPROBACION');
-    expect((await como('LOG-01').post(`/ajustes/${propio.body.id}/rechazar`)).body.codigo).toBe('AUTOAPROBACION');
+    expect((await como('LOG-01').post(`/ajustes/${propio.body.id}/rechazar`, { comentario: 'No corresponde' })).body.codigo).toBe('AUTOAPROBACION');
   });
 
   it('merma por rotura (sembrada) se rechaza y un ajuste positivo crea capa al costo de la última', async () => {
     const pendientes = (await como('LOG-01').get('/ajustes?estado=PENDIENTE')).body;
     const rotura = pendientes.find((a: { motivo: string; almacen: { codigo: string } }) => a.motivo === 'ROTURA' && a.almacen.codigo === 'CD-LP-01');
-    expect((await como('LOG-01').post(`/ajustes/${rotura.id}/rechazar`)).body.estado).toBe('RECHAZADO');
+    expect((await como('LOG-01').post(`/ajustes/${rotura.id}/rechazar`, { comentario: 'No corresponde' })).body.estado).toBe('RECHAZADO');
 
     const ultima = (await capasDe(prisma, 'ART-30005', 'CD-LP-01')).at(-1)!;
     const alta = await como('ALM-LP').post('/ajustes', { almacen: 'CD-LP-01', articulo: 'ART-30005', cantidad: 5, motivo: 'ERROR_REGISTRO' });

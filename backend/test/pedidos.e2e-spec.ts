@@ -24,7 +24,7 @@ describe('Pedidos, reservas y despacho FIFO', () => {
 
     const d = await como('ALM-LP').post(`/pedidos/${p.body.id}/despachar`);
     expect(d.status).toBe(200);
-    expect(d.body.salidas.map((s: { cantidad: number; costoUnitario: number }) => [s.cantidad, s.costoUnitario])).toEqual([[360, 12.4], [140, 12.52]]);
+    expect(d.body.capasConsumidas.map((s: { cantidad: number; costoUnitario: number }) => [s.cantidad, s.costoUnitario])).toEqual([[360, 12.4], [140, 12.52]]);
     expect(d.body.costoTotal).toBe(6216.8); // 360 × 12.40 + 140 × 12.52
     expect((await capasDe(prisma, 'ART-10021', 'CD-LP-01')).map((c) => c.cantidadRestante)).toEqual([220, 360]);
     expect(await stockDe(como, 'CD-LP-01', 'ART-10021')).toMatchObject({ disponible: 420, reservado: 160 });
@@ -67,7 +67,7 @@ describe('Pedidos, reservas y despacho FIFO', () => {
     const p = await como('PV-014').post('/pedidos', { cliente: 'Cliente 004', almacen: 'CD-LP-01', lineas: [{ articulo: 'ART-10063', cantidad: 50 }] });
     expect(p.status).toBe(201);
     const d = await como('ALM-LP').post(`/pedidos/${p.body.id}/despachar`);
-    expect(d.body.salidas).toEqual([expect.objectContaining({ capaId: nueva.id, cantidad: 50 })]);
+    expect(d.body.capasConsumidas).toEqual([expect.objectContaining({ capaId: nueva.id, cantidad: 50 })]);
     const despues = await capasDe(prisma, 'ART-10063', 'CD-LP-01');
     expect(despues.map((c) => c.cantidadRestante)).toEqual([40, 60]);
   });

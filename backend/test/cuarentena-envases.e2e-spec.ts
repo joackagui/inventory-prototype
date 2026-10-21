@@ -24,7 +24,7 @@ describe('Cuarentena y envases', () => {
     expect((await como('PV-014').post('/pedidos', { cliente: 'Cliente 001', almacen: 'CD-LP-01', lineas: [{ articulo: 'ART-10021', cantidad: 821 }] })).status).toBe(409);
     const p = await como('PV-014').post('/pedidos', { cliente: 'Cliente 001', almacen: 'CD-LP-01', lineas: [{ articulo: 'ART-10021', cantidad: 300 }] });
     const d = await como('ALM-LP').post(`/pedidos/${p.body.id}/despachar`);
-    expect(d.body.salidas.map((s: { capaId: number }) => s.capaId)).not.toContain(q.body.id);
+    expect(d.body.capasConsumidas.map((s: { capaId: number }) => s.capaId)).not.toContain(q.body.id);
     expect((await prisma.capaFifo.findUniqueOrThrow({ where: { id: q.body.id } })).cantidadRestante).toBe(100);
 
     expect((await como('ALM-LP').post(`/cuarentena/${q.body.id}/liberar`)).status).toBe(403);

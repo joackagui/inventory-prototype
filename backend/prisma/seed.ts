@@ -162,6 +162,7 @@ interface MovSim {
   usuario: string;
   motivo: string;
   documentoTipo?: string;
+  documentoId?: number;
 }
 let capas: CapaSim[] = [];
 let movimientos: MovSim[] = [];
@@ -451,7 +452,7 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
       },
     });
     const ubic = ARTICULOS.find((a) => a.codigo === p.articulo)!.retornable ? 'PICK-A' : 'PICK-B';
-    movimientos.push({ tipo: 'RESERVA', articulo: p.articulo, almacen: p.almacen, ubicacion: ubic, capa: null, cantidad: p.cantidad, costo: 0, fecha: FECHA_OPERACION, usuario: 'PV-014', motivo: `Reserva pedido ${pedido.numero}`, documentoTipo: 'PedidoSimulado' });
+    movimientos.push({ tipo: 'RESERVA', articulo: p.articulo, almacen: p.almacen, ubicacion: ubic, capa: null, cantidad: p.cantidad, costo: 0, fecha: FECHA_OPERACION, usuario: 'PV-014', motivo: `Reserva pedido ${pedido.numero}`, documentoTipo: 'PedidoSimulado', documentoId: pedido.id });
   }
 
   // Envases retornables en poder de clientes (Cliente 003 con más de 60 días)
@@ -542,7 +543,7 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
         usuarioId: usuarioId[m.usuario],
         motivo: m.motivo,
         documentoTipo: m.documentoTipo ?? null,
-        documentoId: m.documentoTipo === 'OrdenTraslado' ? orden.id : null,
+        documentoId: m.documentoId ?? (m.documentoTipo === 'OrdenTraslado' ? orden.id : null),
       })),
     });
   }
