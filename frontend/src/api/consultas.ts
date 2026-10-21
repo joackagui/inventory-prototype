@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { type FiltroAlmacen, useSesion } from '../sesion/Sesion'
 import { api } from './cliente'
-import type { Alerta, AlertaDetalle, Capa, FilaArticulo, FilaKardex, Pagina, ResumenAlertas, ResumenArticulo, ResumenTablero, Semaforo, SerieStock, StockPreventista, UmbralDetalle, Usuario } from './tipos'
+import type { Ajuste, Alerta, AlertaDetalle, Capa, CapaListada, Cliente, ColorAlerta, FilaArticulo, Pedido, Promocion, PropuestaTraslado, SaldoEnvase, StockAlmacen, Traslado, Ubicacion, FilaKardex, Pagina, ResumenAlertas, ResumenArticulo, ResumenTablero, Semaforo, SerieStock, StockPreventista, UmbralDetalle, Usuario } from './tipos'
 
 export interface Almacen {
   id: number
@@ -165,4 +165,87 @@ export function useMovimientosArticulo(codigo: string, almacen: FiltroAlmacen, a
   const { usuario } = useSesion()
   const extra = almacen === 'TODOS' ? '' : `&almacen=${almacen}`
   return useQuery({ queryKey: ['movimientos', usuario, codigo, almacen], queryFn: () => api<Pagina<Movimiento>>(`/movimientos?articulo=${codigo}&tamano=8${extra}`), enabled: activo })
+}
+
+const qs = (params: Record<string, string | number | undefined | null>) =>
+  new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '') as [string, string][]).toString()
+
+export function useClientes() {
+  return useQuery({ queryKey: ['clientes'], queryFn: () => api<Cliente[]>('/clientes'), staleTime: Infinity })
+}
+
+export function useUbicaciones(almacen: string | undefined) {
+  const { usuario } = useSesion()
+  return useQuery({
+    queryKey: ['ubicaciones', usuario, almacen],
+    queryFn: async () => (await api<{ codigo: string; ubicaciones: Ubicacion[] }[]>('/almacenes')).find((a) => a.codigo === almacen)?.ubicaciones ?? [],
+    enabled: !!almacen,
+    staleTime: Infinity,
+  })
+}
+
+export function useStock(almacen: string | undefined) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['stock', usuario, almacen], queryFn: () => api<StockAlmacen>(`/stock?almacenId=${almacen}`), enabled: !!almacen })
+}
+
+export function usePedidos(almacen: FiltroAlmacen) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['pedidos', usuario, almacen], queryFn: () => api<Pedido[]>(`/pedidos?${qs({ almacen: almacen === 'TODOS' ? '' : almacen })}`) })
+}
+
+export function useTraslados() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['traslados', usuario], queryFn: () => api<Traslado[]>('/traslados') })
+}
+
+export function usePropuesta(almacen: string | undefined) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['traslados', usuario, 'propuesta', almacen], queryFn: () => api<PropuestaTraslado[]>(`/traslados/propuesta?almacenId=${almacen}`), enabled: !!almacen })
+}
+
+export function useAjustes(estado?: string) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['ajustes', usuario, estado], queryFn: () => api<Ajuste[]>(`/ajustes?${qs({ estado })}`) })
+}
+
+export function useAjusteDetalle(id: number | null) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['ajustes', usuario, 'detalle', id], queryFn: () => api<Ajuste>(`/ajustes/${id}`), enabled: id !== null })
+}
+
+export function useImpactoAjuste(p: { almacen?: string; articulo?: string; cantidad?: number; capaId?: number }) {
+  const { usuario } = useSesion()
+  const activo = !!p.almacen && !!p.articulo && !!p.cantidad
+  return useQuery({ queryKey: ['impacto', usuario, p], queryFn: () => api<Ajuste['impacto'] & { faltante?: number }>(`/ajustes/impacto?${qs(p)}`), enabled: activo, retry: false, meta: { silencioso: true } })
+}
+
+export function useCapasFiltro(p: { almacen?: string; articulo?: string; estado?: string }, activo = true) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['capas', usuario, p], queryFn: () => api<CapaListada[]>(`/capas?${qs(p)}`), enabled: activo })
+}
+
+export function usePromociones() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['promociones', usuario], queryFn: () => api<Promocion[]>('/promociones') })
+}
+
+export function useSaldosEnvases(almacen?: string) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['envases', usuario, almacen], queryFn: () => api<SaldoEnvase[]>(`/envases/saldos?${qs({ almacen })}`) })
+}
+
+export interface PreviaRecepcion {
+  ubicacionSugerida: string
+  vidaUtilDias: number
+  vencimiento: string | null
+  vidaRestanteDias: number | null
+  capaAnterior: { lote: string; costoUnitario: number } | null
+  variacionPct: number | null
+  alertaCosto: { codigo: string; color: ColorAlerta; mensaje: string } | null
+}
+
+export function useRecepcionPrevia(p: { almacen?: string; articulo?: string; costoUnitario?: number; fechaElaboracion?: string; lote?: string }) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['recepcion-previa', usuario, p], queryFn: () => api<PreviaRecepcion>(`/operaciones/recepcion/previa?${qs(p)}`), enabled: !!p.almacen && !!p.articulo, retry: false, meta: { silencioso: true } })
 }

@@ -56,6 +56,8 @@ export interface Alerta {
   id: number
   codigo: string
   nombre?: string
+  referenciaTipo?: string
+  referenciaId?: number | null
   color: ColorAlerta
   estado: 'ABIERTA' | 'ATENDIDA' | 'RESUELTA'
   situacion: string
@@ -225,4 +227,152 @@ export interface UmbralDetalle {
   nombre: string
   valor: Record<string, number | Record<string, number>>
   porDefecto: Record<string, number | Record<string, number>>
+}
+
+export interface AlertaEfecto {
+  id: number
+  codigo: string
+  almacen: string | null
+  articulo: string | null
+  colorAntes: ColorAlerta | null
+  colorDespues: ColorAlerta | null
+  mensaje: string
+}
+
+export interface EfectoAlertas {
+  creadas: AlertaEfecto[]
+  resueltas: AlertaEfecto[]
+  cambiadas: AlertaEfecto[]
+}
+
+export interface CapaConsumida {
+  capaId: number
+  lote: string
+  cantidad: number
+  costoUnitario: number
+  valor: number
+  vencimiento: string
+  articulo?: string
+}
+
+// Toda escritura devuelve su efecto en alertas; las que consumen capas, también las capas y el costo.
+export interface ConEfecto {
+  efectoAlertas?: EfectoAlertas
+  capasConsumidas?: CapaConsumida[]
+  costoTotal?: number
+}
+
+export interface Cliente {
+  id: number
+  codigo: string
+  nombre: string
+}
+
+export interface Pedido extends ConEfecto {
+  id: number
+  numero: string
+  estado: 'PENDIENTE_REVISION' | 'CONFIRMADO' | 'DESPACHADO' | 'CANCELADO'
+  fechaOperacion: string
+  antiguedadDias: number
+  conFaltante: boolean
+  cliente: { codigo: string }
+  almacen: { codigo: string }
+  almacenId: number
+  lineas: { id: number; cantidad: number; bonificacion: boolean; articulo: { codigo: string; descripcion: string } }[]
+}
+
+export interface Traslado extends ConEfecto {
+  id: number
+  numero: string
+  estado: 'EMITIDA' | 'EN_TRANSITO' | 'RECIBIDA' | 'CON_DIFERENCIA'
+  fechaEmision: string
+  fechaDespacho: string | null
+  fechaRecepcion: string | null
+  origen: { codigo: string }
+  destino: { codigo: string }
+  lineas: { id: number; cantidadDespachada: number; cantidadRecibida: number | null; estadoRecepcion: string | null; articulo: { codigo: string } }[]
+}
+
+export interface PropuestaTraslado {
+  articulo: string
+  descripcion: string
+  posicion: number
+  rop: number
+  stockMaximo: number
+  trasladoPropuesto: number
+  origenSugerido: string | null
+  cantidadSugerida: number
+  candidatos: { almacen: string; disponible: number; rop: number; excedente: number; coberturaSobreRop: number }[]
+}
+
+export interface Ajuste extends ConEfecto {
+  id: number
+  motivo: string
+  cantidad: number
+  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
+  observacion: string | null
+  comentarioResolucion: string | null
+  fechaRegistro: string
+  antiguedadDias: number
+  registradoPorId: number
+  articulo: { codigo: string; descripcion: string }
+  almacen: { codigo: string; tipo: string }
+  capa: { lote: string; fechaVencimiento: string; estado: string } | null
+  ordenTraslado: { id: number; numero: string } | null
+  conteo: { id: number; cantidadSistema: number; cantidadContada: number; porcentaje: number } | null
+  registradoPor: { codigo: string }
+  aprobadoPor: { codigo: string } | null
+  impacto: { valor: number; capas: { lote: string; cantidad: number; costoUnitario: number }[] }
+  valor?: number
+  alertas?: { id: number; codigo: string; color: ColorAlerta; estado: string; mensaje: string }[]
+}
+
+export interface CapaListada extends Capa {
+  articulo: { codigo: string; descripcion: string }
+}
+
+export interface Promocion extends ConEfecto {
+  id: number
+  nombre: string
+  tipo: string
+  estado: 'PROPUESTA' | 'BORRADOR' | 'ACTIVA' | 'FINALIZADA'
+  fechaInicio: string
+  fechaFin: string
+  topeCajas: number
+  cajasUsadas: number
+  topeRestante: number
+  vendible: number
+  coberturaDias: number
+  diasRestantes: number
+  referenciaCorreo: string | null
+  articulo: { codigo: string }
+  almacen: { codigo: string } | null
+  propuestaPor: { codigo: string } | null
+  aprobadoPor: { codigo: string } | null
+}
+
+export interface SaldoEnvase {
+  id: number
+  clienteId: number
+  articuloId: number
+  cantidadEntregada: number
+  cantidadDevuelta: number
+  pendiente: number
+  antiguedadDias: number
+  fechaEntrega: string
+  cliente: { codigo: string }
+  articulo: { codigo: string }
+  almacen: { codigo: string }
+}
+
+export interface StockAlmacen {
+  almacen: string
+  articulos: { codigo: string; descripcion: string; disponible: number; vendible?: number; estado?: string }[]
+}
+
+export interface Ubicacion {
+  id: number
+  codigo: string
+  descripcion: string
+  vendible: boolean
 }

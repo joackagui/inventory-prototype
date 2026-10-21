@@ -14,10 +14,11 @@ import { SesionProvider, useSesion } from './sesion/Sesion'
 
 // Errores de la API en un solo lugar, con aviso en español (el id evita avisos repetidos).
 const avisar = (e: unknown) => toast.error(describirError(e), { id: describirError(e) })
+// Las mutaciones con meta.silencioso muestran el error dentro de su formulario (por ejemplo, el faltante de un pedido).
 const clienteConsultas: QueryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: avisar }),
+  queryCache: new QueryCache({ onError: (e, consulta) => !consulta.meta?.silencioso && avisar(e) }),
   mutationCache: new MutationCache({
-    onError: avisar,
+    onError: (e, _v, _c, mutacion) => !mutacion.meta?.silencioso && avisar(e),
     // Cualquier operación puede cambiar stock y alertas: se refrescan todas las consultas.
     onSuccess: (): Promise<void> => clienteConsultas.invalidateQueries(),
   }),
