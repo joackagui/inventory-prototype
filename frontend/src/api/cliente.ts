@@ -1,4 +1,5 @@
 // Cliente HTTP de la API: agrega X-Usuario y convierte los errores { codigo, mensaje, detalles } en ErrorApi.
+import { toast } from 'sonner'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
@@ -31,6 +32,13 @@ export async function api<T>(ruta: string, opciones: { metodo?: 'GET' | 'POST' |
     throw new ErrorApi(0, 'SIN_CONEXION', 'No se pudo conectar con el backend (¿está corriendo en el puerto 3000?)', null)
   }
   const cuerpo = await res.json().catch(() => null)
+  // Mientras se restablecen los datos de la demo, cualquier pestaña avisa y reintenta sola.
+  if (res.status === 503 && cuerpo?.codigo === 'DEMO_RESTABLECIENDO') {
+    toast.loading('Restableciendo los datos de la demo… se reintenta en un momento', { id: 'restableciendo' })
+    await new Promise((r) => setTimeout(r, 1500))
+    return api<T>(ruta, opciones)
+  }
+  toast.dismiss('restableciendo')
   if (!res.ok) throw new ErrorApi(res.status, cuerpo?.codigo ?? 'ERROR', cuerpo?.mensaje ?? `Error ${res.status}`, cuerpo?.detalles ?? null)
   return cuerpo as T
 }

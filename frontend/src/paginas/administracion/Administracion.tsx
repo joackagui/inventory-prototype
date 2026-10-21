@@ -101,7 +101,7 @@ export function Administracion() {
     <div className="space-y-6">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Administración de la demo</h1>
-        <p className="mt-1 text-suave">Herramientas para ensayar y conducir la demo en vivo{opera ? '' : ' (solo lectura para tu rol)'}.</p>
+        <p className="secundario mt-1 text-suave">Herramientas para ensayar y conducir la demo en vivo{opera ? '' : ' (solo lectura para tu rol)'}.</p>
       </div>
 
       <div className="grid gap-6 2xl:grid-cols-2">

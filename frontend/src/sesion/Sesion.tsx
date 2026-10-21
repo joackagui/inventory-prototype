@@ -12,6 +12,8 @@ interface ValorSesion {
   fijarAlmacen: (almacen: FiltroAlmacen) => void
   tema: Tema
   alternarTema: () => void
+  presentacion: boolean
+  alternarPresentacion: () => void
 }
 
 // Preferencias del espectador: localStorage puede fallar (ventana privada), así que siempre hay un valor por defecto.
@@ -40,10 +42,15 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   })
   const [almacen, setAlmacen] = useState(() => leer<FiltroAlmacen>('cbn.almacen', 'TODOS'))
   const [tema, setTema] = useState(() => leer<Tema>('cbn.tema', 'claro'))
+  const [presentacion, setPresentacion] = useState(() => leer<string>('cbn.presentacion', 'no') === 'si')
 
   useEffect(() => {
     document.documentElement.dataset.theme = tema
   }, [tema])
+  useEffect(() => {
+    if (presentacion) document.documentElement.dataset.presentacion = ''
+    else delete document.documentElement.dataset.presentacion
+  }, [presentacion])
 
   const fijarUsuario = useCallback((codigo: string) => {
     fijarUsuarioApi(codigo)
@@ -62,7 +69,14 @@ export function SesionProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  return <Contexto.Provider value={{ usuario, fijarUsuario, almacen, fijarAlmacen, tema, alternarTema }}>{children}</Contexto.Provider>
+  const alternarPresentacion = useCallback(() => {
+    setPresentacion((p) => {
+      guardar('cbn.presentacion', p ? 'no' : 'si')
+      return !p
+    })
+  }, [])
+
+  return <Contexto.Provider value={{ usuario, fijarUsuario, almacen, fijarAlmacen, tema, alternarTema, presentacion, alternarPresentacion }}>{children}</Contexto.Provider>
 }
 
 export function useSesion() {

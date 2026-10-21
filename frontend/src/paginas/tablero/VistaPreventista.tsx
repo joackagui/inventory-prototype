@@ -14,7 +14,7 @@ export function VistaPreventista() {
     <div className="space-y-6" data-testid="vista-preventista">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Disponibilidad para preventa</h1>
-        <p className="mt-1 text-suave">Stock vendible hoy por almacén (descuenta reservas y lotes con menos de 15 días de vida).</p>
+        <p className="secundario mt-1 text-suave">Stock vendible hoy por almacén (descuenta reservas y lotes con menos de 15 días de vida).</p>
       </div>
       <Tarjeta>
         {error ? (

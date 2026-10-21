@@ -9,7 +9,7 @@ import { RelojSimulado } from '../componentes/RelojSimulado'
 import { SelectorAlmacen } from '../componentes/SelectorAlmacen'
 import { SelectorUsuario } from '../componentes/SelectorUsuario'
 import { Esqueleto } from '../componentes/Tarjeta'
-import { TemaToggle } from '../componentes/TemaToggle'
+import { PresentacionToggle, TemaToggle } from '../componentes/TemaToggle'
 import { SinAcceso } from '../paginas/SinAcceso'
 import { SECCIONES } from '../sesion/permisos'
 
@@ -42,7 +42,7 @@ function BarraLateral() {
           </NavLink>
         ))}
       </nav>
-      <p className="hidden px-5 py-4 text-xs text-marca-texto-suave 2xl:block">Prototipo · datos de muestra</p>
+      <p className="secundario hidden px-5 py-4 text-xs text-marca-texto-suave 2xl:block">Prototipo · datos de muestra</p>
     </aside>
   )
 }
@@ -54,6 +54,7 @@ function BarraSuperior() {
       <RelojSimulado />
       <div className="ml-auto flex items-center gap-2">
         <Campana />
+        <PresentacionToggle />
         <TemaToggle />
         <SelectorUsuario />
       </div>

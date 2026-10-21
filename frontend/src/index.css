@@ -55,6 +55,22 @@
   color-scheme: dark;
 }
 
+/* Modo presentación: letra base ~113%, más contraste y sin elementos secundarios (claro y oscuro). */
+[data-presentacion] {
+  font-size: 113%;
+  --texto-suave: #2f3d52;
+  --borde: #b4c1d3;
+  --marca-texto-suave: #c9d6ea;
+}
+[data-presentacion][data-theme='oscuro'] {
+  --texto-suave: #c3cfe2;
+  --borde: #3a4d70;
+  --texto: #ffffff;
+}
+[data-presentacion] .secundario {
+  display: none !important;
+}
+
 @theme inline {
   --color-fondo: var(--fondo);
   --color-superficie: var(--superficie);

@@ -38,7 +38,7 @@ export function Operaciones() {
     <div className="space-y-6">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Operaciones</h1>
-        <p className="mt-1 text-suave">Cada operación muestra su efecto: capas FIFO, costos y alertas.</p>
+        <p className="secundario mt-1 text-suave">Cada operación muestra su efecto: capas FIFO, costos y alertas.</p>
       </div>
       <nav aria-label="Operaciones" className="grid gap-3 sm:grid-cols-4 2xl:grid-cols-8">
         {visibles.map(({ tipo, titulo, descripcion, icono: Icono }) => (

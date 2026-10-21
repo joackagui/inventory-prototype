@@ -281,7 +281,7 @@ export function Analisis() {
     <div className="space-y-6">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Análisis</h1>
-        <p className="mt-1 text-suave">Clasificación ABC, Pareto de ajustes, rotación y exactitud del inventario.</p>
+        <p className="secundario mt-1 text-suave">Clasificación ABC, Pareto de ajustes, rotación y exactitud del inventario.</p>
       </div>
       <div role="tablist" className="flex gap-1 border-b border-borde">
         {PESTANAS.map((p) => (

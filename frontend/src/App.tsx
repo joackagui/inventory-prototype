@@ -1,20 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout, RequiereRol } from './diseno/Layout'
-import { CentroAlertas } from './paginas/alertas/CentroAlertas'
-import { Administracion } from './paginas/administracion/Administracion'
-import { Analisis } from './paginas/analisis/Analisis'
-import { Aprobaciones } from './paginas/aprobaciones/Aprobaciones'
-import { Costos } from './paginas/costos/Costos'
-import { Fiestas } from './paginas/fiestas/Fiestas'
-import { Operaciones } from './paginas/operaciones/Operaciones'
-import { Articulos } from './paginas/articulos/Articulos'
-import { Ficha } from './paginas/articulos/Ficha'
+import { Esqueleto } from './componentes/Tarjeta'
 import { Proximamente } from './paginas/Proximamente'
-import { Tablero } from './paginas/tablero/Tablero'
 import { SECCIONES } from './sesion/permisos'
 
+// Cada pantalla se carga al visitarla (recharts y los formularios quedan fuera del paquete inicial).
+const Tablero = lazy(() => import('./paginas/tablero/Tablero').then((m) => ({ default: m.Tablero })))
+const Ficha = lazy(() => import('./paginas/articulos/Ficha').then((m) => ({ default: m.Ficha })))
 // Pantallas construidas; el resto de las secciones muestra «Próximamente».
-const PANTALLAS: Record<string, () => React.JSX.Element> = { '/tablero': Tablero, '/alertas': CentroAlertas, '/articulos': Articulos, '/operaciones': Operaciones, '/aprobaciones': Aprobaciones, '/analisis': Analisis, '/fiestas': Fiestas, '/costos': Costos, '/administracion': Administracion }
+const PANTALLAS: Record<string, React.ComponentType> = {
+  '/tablero': Tablero,
+  '/alertas': lazy(() => import('./paginas/alertas/CentroAlertas').then((m) => ({ default: m.CentroAlertas }))),
+  '/articulos': lazy(() => import('./paginas/articulos/Articulos').then((m) => ({ default: m.Articulos }))),
+  '/operaciones': lazy(() => import('./paginas/operaciones/Operaciones').then((m) => ({ default: m.Operaciones }))),
+  '/aprobaciones': lazy(() => import('./paginas/aprobaciones/Aprobaciones').then((m) => ({ default: m.Aprobaciones }))),
+  '/analisis': lazy(() => import('./paginas/analisis/Analisis').then((m) => ({ default: m.Analisis }))),
+  '/fiestas': lazy(() => import('./paginas/fiestas/Fiestas').then((m) => ({ default: m.Fiestas }))),
+  '/costos': lazy(() => import('./paginas/costos/Costos').then((m) => ({ default: m.Costos }))),
+  '/administracion': lazy(() => import('./paginas/administracion/Administracion').then((m) => ({ default: m.Administracion }))),
+}
+const cargando = <Esqueleto className="h-64 w-full" />
 
 export default function App() {
   const articulos = SECCIONES.find((s) => s.ruta === '/articulos')!
@@ -24,13 +30,15 @@ export default function App() {
         <Route index element={<Navigate to="/tablero" replace />} />
         {SECCIONES.map((s) => {
           const Pantalla = PANTALLAS[s.ruta]
-          return <Route key={s.ruta} path={s.ruta} element={<RequiereRol roles={s.roles}>{Pantalla ? <Pantalla /> : <Proximamente seccion={s} />}</RequiereRol>} />
+          return <Route key={s.ruta} path={s.ruta} element={<RequiereRol roles={s.roles}><Suspense fallback={cargando}>{Pantalla ? <Pantalla /> : <Proximamente seccion={s} />}</Suspense></RequiereRol>} />
         })}
         <Route
           path="/articulos/:codigo"
           element={
             <RequiereRol roles={articulos.roles}>
-              <Ficha />
+              <Suspense fallback={cargando}>
+                <Ficha />
+              </Suspense>
             </RequiereRol>
           }
         />

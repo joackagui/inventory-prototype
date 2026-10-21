@@ -146,7 +146,7 @@ export function Aprobaciones() {
     <div className="space-y-6">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Aprobaciones</h1>
-        <p className="mt-1 text-suave">Bandeja del coordinador de logística: lo que espera una decisión de R07.</p>
+        <p className="secundario mt-1 text-suave">Bandeja del coordinador de logística: lo que espera una decisión de R07.</p>
       </div>
       <div className="flex flex-wrap gap-2" aria-label="Pendientes por tipo">
         {secciones.map((s) => (

@@ -171,7 +171,7 @@ export function Fiestas() {
     <div className="space-y-6">
       <div className="entrar">
         <h1 className="text-3xl font-bold tracking-tight">Fiestas</h1>
-        <p className="mt-1 text-suave">Calendario 2027, factor estacional, ROP de fiesta, pronóstico y estado de preparación.</p>
+        <p className="secundario mt-1 text-suave">Calendario 2027, factor estacional, ROP de fiesta, pronóstico y estado de preparación.</p>
       </div>
       <Tarjeta titulo="Calendario de fiestas" subtitulo="Barra = fiesta coloreada por su preparación · sombreado = ventana de preparación · línea azul = fecha simulada">
         <LineaTiempoFiestas fiestas={data.fiestas} fecha={hoy?.fechaSimulada ?? data.fechaOperacion} seleccionada={actual?.id} onElegir={setElegida} />
