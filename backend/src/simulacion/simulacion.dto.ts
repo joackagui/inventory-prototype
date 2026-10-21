@@ -1,4 +1,4 @@
-import { IsDateString, IsDefined, IsInt } from 'class-validator';
+import { IsDateString, IsDefined, IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import type { Prisma } from '../generated/prisma/client.js';
 
 export class FechaDto {
@@ -17,4 +17,13 @@ export class ValorConfiguracionDto {
   /** Nuevo valor (número, texto u objeto JSON). @example 0.5 */
   @IsDefined()
   valor: Prisma.InputJsonValue;
+}
+
+export class FallaIntegracionDto {
+  /** @example 'COLA_ERRORES' */
+  @IsIn(['REINTENTO', 'COLA_ERRORES']) estado: 'REINTENTO' | 'COLA_ERRORES';
+  /** @example 'CONCILIACION_VENTAS' */
+  @IsOptional() @IsString() tipo?: string;
+  /** @example 'Factura F-2027-0815' */
+  @IsOptional() @IsString() referencia?: string;
 }

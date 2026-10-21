@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ErrorNegocio } from '../comun/errores.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { EVENTO_EVALUAR } from '../inventario/motor.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const FECHA_INICIAL = '2027-06-30';
 
 @Injectable()
 export class SimulacionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventos: EventEmitter2,
+  ) {}
 
   // Fecha de operación simulada guardada en ConfiguracionSistema ("AAAA-MM-DD").
   async fechaSimulada(): Promise<string | null> {
@@ -33,6 +38,8 @@ export class SimulacionService {
     }
     const anterior = await this.fechaSimulada();
     await this.guardar('fechaSimulada', fecha, usuarioId, 'Fecha de operación simulada (AAAA-MM-DD)');
+    // Casi todas las alertas dependen del tiempo: evaluación completa.
+    await this.eventos.emitAsync(EVENTO_EVALUAR);
     return { fechaSimulada: fecha, fechaAnterior: anterior };
   }
 
