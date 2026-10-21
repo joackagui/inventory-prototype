@@ -9,6 +9,7 @@ import {
   ropFiesta,
   trasladoPropuesto,
   vidaRestanteDias,
+  zDesdeNivelServicio,
 } from './formulas.js';
 
 // Datos de La Paz (sección 4 de la especificación).
@@ -44,6 +45,13 @@ describe('parámetros de reposición', () => {
     expect(trasladoPropuesto(p.stockMaximo, calcularPosicion(240, 0), p.rop)).toBe(496);
     // Por encima del ROP no se propone traslado.
     expect(trasladoPropuesto(p.stockMaximo, 300, p.rop)).toBe(0);
+  });
+
+  it('Z tabulado para 98/95/90% y calculado para otros niveles', () => {
+    expect([0.98, 0.95, 0.9].map(zDesdeNivelServicio)).toEqual([2.05, 1.65, 1.28]);
+    expect(zDesdeNivelServicio(0.99)).toBe(2.33);
+    expect(zDesdeNivelServicio(0.5)).toBe(0);
+    expect(calcularParametros(120, 17, 3, 'A', 0.99)).toMatchObject({ z: 2.33, stockSeguridad: 69 });
   });
 
   it('cobertura en días', () => {

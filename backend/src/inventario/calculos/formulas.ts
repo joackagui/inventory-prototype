@@ -87,9 +87,41 @@ export interface ParametrosCalculados {
   stockMaximo: number;
 }
 
+// Z para un nivel de servicio. Los tres niveles de la especificación usan su Z tabulado (2.05, 1.65, 1.28);
+// cualquier otro se calcula con la inversa de la normal (aproximación de Acklam) a 2 decimales.
+export function zDesdeNivelServicio(nivelServicio: number): number {
+  const tabulado = Object.values(NIVEL_SERVICIO).find((n) => Math.abs(n.nivelServicio - nivelServicio) < 1e-9);
+  if (tabulado) return tabulado.z;
+  if (!(nivelServicio > 0 && nivelServicio < 1)) throw new RangeError('El nivel de servicio debe estar entre 0 y 1');
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742];
+  const p = nivelServicio;
+  let z: number;
+  if (p < 0.02425) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    z = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else if (p <= 1 - 0.02425) {
+    const q = p - 0.5;
+    const r = q * q;
+    z = ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  } else {
+    const q = Math.sqrt(-2 * Math.log(1 - p));
+    z = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  return Math.round(z * 100) / 100;
+}
+
 // Único camino para obtener SS, ROP, Q y Máx a partir de las entradas.
-export function calcularParametros(d: number, sigma: number, leadTimeDias: number, clase: ClaseAbc): ParametrosCalculados {
-  const { nivelServicio, z } = NIVEL_SERVICIO[clase];
+export function calcularParametros(
+  d: number,
+  sigma: number,
+  leadTimeDias: number,
+  clase: ClaseAbc,
+  nivelServicio = NIVEL_SERVICIO[clase].nivelServicio,
+): ParametrosCalculados {
+  const z = zDesdeNivelServicio(nivelServicio);
   const diasRevision = DIAS_REVISION[clase];
   const stockSeguridad = calcularSS(z, sigma, leadTimeDias);
   const rop = calcularROP(d, leadTimeDias, stockSeguridad);
@@ -97,9 +129,11 @@ export function calcularParametros(d: number, sigma: number, leadTimeDias: numbe
   return { nivelServicio, z, diasRevision, stockSeguridad, rop, loteTraslado, stockMaximo: calcularMaximo(rop, loteTraslado) };
 }
 
-// Tipos de movimiento que cambian el stock físico del almacén (los demás son de control).
+// Tipos de movimiento con cantidades físicas (los demás son de control: RESERVA, LIBERACION_RESERVA, CONTEO, ENVASE_*).
+// CUARENTENA mueve stock entre ubicaciones del mismo almacén con dos patas (−n y +n): suma 0 en el almacén.
 export const TIPOS_FISICOS = [
   'ENTRADA',
+  'CUARENTENA',
   'SALIDA',
   'TRASLADO_SALIDA',
   'TRASLADO_ENTRADA',
