@@ -22,6 +22,7 @@ const MENSAJES: Record<string, (campo: string, original: string) => string> = {
   arrayNotEmpty: (c) => `${c} debe tener al menos un elemento`,
   isObject: (c) => `${c} debe ser un objeto`,
   matches: (c) => `${c} no tiene el formato esperado`,
+  equals: (c, m) => `${c} debe ser exactamente ${m.split(' ').at(-1)}`,
   whitelistValidation: (c) => `${c} no es un campo permitido`,
   nestedValidation: (c) => `${c} debe ser un objeto válido`,
 };

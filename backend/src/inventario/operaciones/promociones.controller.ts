@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles, TODOS, UsuarioActual, type UsuarioSesion } from '../../usuarios/autorizacion.js';
-import { AprobarPromocionDto, FiltroPromocionesDto, PromocionDto } from './promociones.dto.js';
+import { AprobarPromocionDto, FiltroPromocionesDto, PromocionDto, RechazarPromocionDto } from './promociones.dto.js';
 import { PromocionesService } from './promociones.service.js';
 
 @ApiTags('Promociones')
@@ -29,6 +29,14 @@ export class PromocionesController {
   @Roles('R07')
   aprobar(@Param('id', ParseIntPipe) id: number, @Body() dto: AprobarPromocionDto, @UsuarioActual() u: UsuarioSesion) {
     return this.servicio.aprobar(id, dto, u);
+  }
+
+  /** Rechaza una promoción propuesta (R07) con comentario obligatorio → RECHAZADA. */
+  @Post(':id/rechazar')
+  @HttpCode(200)
+  @Roles('R07')
+  rechazar(@Param('id', ParseIntPipe) id: number, @Body() dto: RechazarPromocionDto, @UsuarioActual() u: UsuarioSesion) {
+    return this.servicio.rechazar(id, dto.comentario, u);
   }
 
   /** Cierra la promoción (R07) → FINALIZADA. */

@@ -30,3 +30,8 @@ export class AprobarPromocionDto {
 export class FiltroPromocionesDto {
   @IsOptional() @IsEnum(EstadoPromocion) estado?: EstadoPromocion;
 }
+
+export class RechazarPromocionDto {
+  /** Motivo del rechazo (obligatorio). @example 'Tope demasiado alto para el stock disponible' */
+  @IsString() @IsNotEmpty() comentario: string;
+}

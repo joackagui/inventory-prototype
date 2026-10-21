@@ -96,6 +96,7 @@ enum EstadoPromocion {
   BORRADOR
   ACTIVA
   FINALIZADA
+  RECHAZADA
 }
 
 enum ColorAlerta {
@@ -241,6 +242,7 @@ model Usuario {
   historialAlertas      HistorialAlerta[]
   promocionesPropuestas Promocion[]        @relation("PromocionPropuestaPor")
   promocionesAprobadas  Promocion[]        @relation("PromocionAprobadaPor")
+  promocionesRechazadas Promocion[]        @relation("PromocionRechazadaPor")
   registrosCambio       RegistroCambio[]
 }
 
@@ -451,29 +453,33 @@ model SaldoEnvase {
 // ---------- Comercial (solo datos) ----------
 
 model Promocion {
-  id               Int             @id @default(autoincrement())
-  nombre           String
-  tipo             TipoPromocion
-  articuloId       Int
-  articulo         Articulo        @relation(fields: [articuloId], references: [id])
-  almacenId        Int?
-  almacen          Almacen?        @relation(fields: [almacenId], references: [id])
+  id                   Int             @id @default(autoincrement())
+  nombre               String
+  tipo                 TipoPromocion
+  articuloId           Int
+  articulo             Articulo        @relation(fields: [articuloId], references: [id])
+  almacenId            Int?
+  almacen              Almacen?        @relation(fields: [almacenId], references: [id])
   // Liquidación por vencimiento: aplica solo a esta capa.
-  capaId           Int?
-  capa             CapaFifo?       @relation(fields: [capaId], references: [id])
-  fechaInicio      DateTime        @db.Date
-  fechaFin         DateTime        @db.Date
-  topeCajas        Int
-  cajasUsadas      Int             @default(0)
-  descuentoPct     Float?
-  estado           EstadoPromocion
+  capaId               Int?
+  capa                 CapaFifo?       @relation(fields: [capaId], references: [id])
+  fechaInicio          DateTime        @db.Date
+  fechaFin             DateTime        @db.Date
+  topeCajas            Int
+  cajasUsadas          Int             @default(0)
+  descuentoPct         Float?
+  estado               EstadoPromocion
   // Aprobación de R07 con el identificador del correo del Gerente de Logística y Ventas.
-  referenciaCorreo String?
-  propuestaPorId   Int?
-  propuestaPor     Usuario?        @relation("PromocionPropuestaPor", fields: [propuestaPorId], references: [id])
-  aprobadoPorId    Int?
-  aprobadoPor      Usuario?        @relation("PromocionAprobadaPor", fields: [aprobadoPorId], references: [id])
-  lineasPedido     LineaPedido[]
+  referenciaCorreo     String?
+  propuestaPorId       Int?
+  propuestaPor         Usuario?        @relation("PromocionPropuestaPor", fields: [propuestaPorId], references: [id])
+  aprobadoPorId        Int?
+  aprobadoPor          Usuario?        @relation("PromocionAprobadaPor", fields: [aprobadoPorId], references: [id])
+  // Rechazo de R07 (comentario obligatorio).
+  comentarioResolucion String?
+  rechazadaPorId       Int?
+  rechazadaPor         Usuario?        @relation("PromocionRechazadaPor", fields: [rechazadaPorId], references: [id])
+  lineasPedido         LineaPedido[]
 }
 
 model Fiesta {

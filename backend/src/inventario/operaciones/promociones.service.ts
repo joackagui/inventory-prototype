@@ -10,7 +10,7 @@ import { aFecha, almacenPlanta, articuloPorCodigo, emitirCambio, type Tx } from 
 import { TX } from './comun.js';
 import type { AprobarPromocionDto, PromocionDto } from './promociones.dto.js';
 
-const detalle = { articulo: { select: { codigo: true } }, almacen: { select: { codigo: true } }, propuestaPor: { select: { codigo: true } }, aprobadoPor: { select: { codigo: true } } } as const;
+const detalle = { articulo: { select: { codigo: true } }, almacen: { select: { codigo: true } }, propuestaPor: { select: { codigo: true } }, aprobadoPor: { select: { codigo: true } }, rechazadaPor: { select: { codigo: true } } } as const;
 
 @Injectable()
 export class PromocionesService {
@@ -84,6 +84,15 @@ export class PromocionesService {
     }, TX);
     await this.avisar(promo);
     return promo;
+  }
+
+  // R07 rechaza una propuesta con comentario obligatorio: queda RECHAZADA con quién y por qué.
+  async rechazar(id: number, comentario: string, u: UsuarioSesion) {
+    return this.prisma.$transaction(async (tx) => {
+      const p = await this.promocion(tx, id);
+      if (p.estado !== 'PROPUESTA') throw new ErrorNegocio(409, 'PROMOCION_NO_PROPUESTA', `Solo se rechaza una promoción propuesta; ${p.nombre} está ${p.estado}`);
+      return tx.promocion.update({ where: { id }, data: { estado: 'RECHAZADA', comentarioResolucion: comentario, rechazadaPorId: u.id }, include: detalle });
+    }, TX);
   }
 
   async cerrar(id: number) {
