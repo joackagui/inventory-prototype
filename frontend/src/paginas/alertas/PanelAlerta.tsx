@@ -88,7 +88,7 @@ const TITULO_HISTORIAL = { CREADA: 'Creada', CAMBIO_COLOR: 'Cambio de color', ES
 export function motivoNoAtender(a: Pick<AlertaDetalle, 'estado' | 'rolesResponsables' | 'almacen'>, rol?: string, almacenUsuario?: string | null): string | null {
   if (a.estado !== 'ABIERTA') return a.estado === 'ATENDIDA' ? 'Ya fue atendida.' : 'La alerta ya se resolvió.'
   if (rol === 'R07') return null
-  if (!rol || !a.rolesResponsables.includes(rol)) return `Solo la atiende ${a.rolesResponsables.join(' o ')} o R07.`
+  if (!rol || !a.rolesResponsables.includes(rol)) return `Solo la atiende ${[...new Set([...a.rolesResponsables, 'R07'])].join(' o ')}.`
   if (rol === 'R06' && a.almacen?.codigo !== almacenUsuario) return 'Solo puedes atender alertas de tu almacén.'
   return null
 }

@@ -45,7 +45,8 @@ export function SeccionParametros({ codigo, almacenes, editable }: { codigo: str
         <table className="w-full text-sm">
           <caption className="sr-only">Parámetros de reposición por almacén</caption>
           <thead>
-            <tr className="text-left text-xs font-semibold tracking-wide text-suave uppercase">
+            {/* Sin mayúsculas: σd y d son símbolos de las fórmulas. */}
+            <tr className="text-left text-xs font-semibold tracking-wide text-suave">
               <th scope="col" className="pb-2">
                 Almacén
               </th>
