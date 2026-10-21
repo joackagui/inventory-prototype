@@ -42,6 +42,10 @@ La API con ejemplos está en <http://localhost:3000/api/docs>.
 
 Pantallas disponibles:
 - **Operaciones** (`/operaciones`): recepción, pedidos (reserva y despacho FIFO), traslados (propuestas y seguimiento), conteo ciego, ajustes, cuarentena, envases y promociones. Cada operación muestra las capas FIFO consumidas, su costo y qué alertas se crearon o resolvieron.
+- **Análisis** (`/analisis`): Pareto ABC, Pareto de ajustes, rotación y exactitud de conteos.
+- **Fiestas** (`/fiestas`): calendario 2027, cronograma de preparación, ROP y pronóstico de fiesta.
+- **Costos** (`/costos`): adquisición, conservación, pedido y agotamiento por artículo.
+- **Administración** (`/administracion`): reloj y escenarios de demo, restablecer datos (con `DEMO_MODE=true`), simular fallas, integridad, usuarios y bitácora.
 - **Aprobaciones** (`/aprobaciones`, R07): ajustes y mermas, diferencias de recepción, promociones propuestas y capas en cuarentena.
 - **Tablero:** KPIs y semáforo por artículo y almacén.
 - **Centro de alertas** (`/alertas`): filtros, detalle con medidor, atención y umbrales.

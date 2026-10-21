@@ -47,7 +47,8 @@ backend/
     alertas/evaluacion.ts   evaluación contra la base y ciclo de vida (crear, color, resolver, escalar)
     alertas/efecto.ts    interceptor global: todo POST/PUT responde con efectoAlertas (creadas/resueltas/cambiadas)
     alertas/             API de alertas, semáforo y umbrales; escucha inventario.cambio y alertas.evaluar
-    analisis/            GET /api/tablero/resumen, /costos, /fiestas/preparacion, /analisis/pareto-ajustes
+    analisis/            tablero, costos (con vista previa de tasas), fiestas/preparacion (+ cronograma.ts), pareto-ajustes, rotación, conteos
+    demo/                sembrar.ts (lógica del seed), escenarios y restablecer-datos (DEMO_MODE=true, 503 mientras corre)
     articulos/           ArticulosService: /articulos/estado, /:codigo/resumen, /serie, /capas, /kardex (paginado)
     simulacion/integracion.controller.ts  eventos de integración simulados (AL16)
     inventario/operaciones/promociones.*  promociones propuestas (R02) y aprobadas (R07)
@@ -56,7 +57,7 @@ frontend/                ver docs/FRONTEND.md
   src/api/               cliente con X-Usuario, tipos, hooks de React Query
   src/sesion/            usuario/almacén/tema y permisos del menú
   src/componentes/       semáforo, KPI, reloj simulado, selectores, panel lateral
-  src/paginas/           tablero/, alertas/, articulos/, operaciones/ (8 operaciones), aprobaciones/ (bandeja R07), Proximamente, SinAcceso
+  src/paginas/           tablero/, alertas/, articulos/, operaciones/, aprobaciones/, analisis/, fiestas/, costos/, administracion/, SinAcceso
   e2e/                   prueba de humo Playwright (Chromium local)
 ```
 
@@ -91,6 +92,7 @@ frontend/                ver docs/FRONTEND.md
 - Errores con `ErrorNegocio(status, CODIGO, 'mensaje en español', detalles)`.
 - DTOs en archivos `*.dto.ts` con class-validator y JSDoc `@example` (el plugin de Swagger los lee).
 - Cada operación nueva lleva su test de integración y debe dejar `GET /api/integridad` en OK.
+- Seed: la lógica vive en `backend/src/demo/sembrar.ts` (la usan `npm run db:seed`, los tests y `POST /simulacion/restablecer-datos`). Para volver al estado base en una demo usar ese endpoint (o la pantalla Administración), no `migrate reset`.
 - Respuestas de escritura: no calcules el efecto en alertas a mano (lo agrega el interceptor). Si una operación consume capas, devuelve `resumenConsumo(piezas)` (capasConsumidas + costoTotal) de `motor.ts`.
 - Alertas: la lógica de umbrales va en `alertas/evaluadores.ts` (pura, con tests); los datos y el ciclo de vida, en `alertas/evaluacion.ts`. Una operación nueva que cambia stock solo necesita `await emitirCambio(...)`; algo que dependa del tiempo o sea global emite `EVENTO_EVALUAR`.
 - Frontend: sin cálculos de negocio (todo viene de la API); colores solo por tokens de `index.css`; semáforo siempre con ícono + texto; formato con `utils/formato.ts`; hooks en `api/consultas.ts` con el usuario en la queryKey; almacenes con `useAlmacenes()` (nunca códigos fijos); la ficha muestra fórmulas con los números del backend, no las recalcula. No descargar navegadores para Playwright: usar el Chromium de la caché.

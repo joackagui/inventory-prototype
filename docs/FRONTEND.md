@@ -36,6 +36,11 @@ src/
                      para R06, selectores), LineasRecepcion (recepción de traslado con diferencias)
     aprobaciones/    Aprobaciones: bandeja (ajustes, diferencias de recepción, promociones propuestas, capas en cuarentena),
                      AccionesResolucion (aprobar / rechazar con comentario obligatorio; «quien registra no aprueba»)
+    analisis/        ABC y Pareto (con recálculo y vista previa de cambios), Pareto de ajustes, rotación, conteos y exactitud
+    fiestas/         línea de tiempo anual, detalle con cronograma de hitos, tabla y fórmulas de fiesta, acciones
+                     (traslados extraordinarios ?extraordinario=ART:cant,... y promoción festiva prellenada)
+    costos/          tarjetas, barras apiladas, desglose con fórmulas y diálogo de parámetros con vista previa
+    administracion/  reloj y escenarios, restablecer datos, fallas simuladas, integridad, usuarios, bitácora, configuración
     Proximamente     recibe y muestra los parámetros de la URL (?accion=…&articulo=…) hasta que la pantalla exista
     SinAcceso
   utils/formato.ts   números 1,260 · fechas dd/mm/aaaa · USD 1,234.56
@@ -101,6 +106,12 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 - **Errores dentro del formulario:** las mutaciones o consultas con `meta: { silencioso: true }` no muestran el aviso global, porque el error se ve en el propio formulario (el faltante de un pedido, devolver de más, la vista previa de recepción o del impacto de un ajuste).
 - **Avisos previos al confirmar:** los calcula siempre el backend (`/operaciones/recepcion/previa` para el vencimiento y AL13; `/ajustes/impacto` para el valor en USD). El navegador no calcula costos.
 - **Sin doble envío:** `BotonPrimario` se desactiva mientras la operación está en curso.
+
+## Componentes de análisis
+- **`GraficoPareto`:** barras ordenadas, línea de % acumulado y marcas en 80% y 95%. Las barras se colorean por clase (`COLOR_CLASE`).
+- **`LineaTiempoFiestas`:** fiestas posicionadas en porcentaje del rango, ventana de preparación sombreada y marcador de la fecha simulada.
+- **`Cronograma`:** hitos con estado (hecho, en curso, próximo), fechas, responsables y acción.
+- **`DialogoRestablecer`:** solo se confirma escribiendo RESTABLECER; muestra el progreso mientras corre.
 
 ## Pruebas
 - `npm --prefix frontend test`: Vitest + Testing Library con happy-dom (formateadores, semáforo, control de fecha).

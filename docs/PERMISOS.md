@@ -37,6 +37,10 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `AST-01` (R03, sin almacén) · `A
 | `PUT /api/parametros/:articulo/:almacen`, `POST /api/abc/recalcular` | — | — | — | — | ✔ | — | — |
 | `PUT /api/configuracion/:clave` (umbrales, tasas, tolerancia) | — | — | — | — | ✔ | — | — |
 | `PUT /api/simulacion/fecha`, `POST /api/simulacion/avanzar`, `POST /api/simulacion/restablecer` | — | — | — | — | ✔ | — | ✔ |
+| `GET /api/analisis/rotacion`, `/api/analisis/conteos`, `/api/simulacion/escenarios` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `POST /api/simulacion/escenario`, `POST /api/simulacion/restablecer-datos` (DEMO_MODE=true y `confirmacion: "RESTABLECER"`) | — | — | — | — | ✔ | — | ✔ |
+| `POST /api/promociones/:id/rechazar` (comentario obligatorio) | — | — | — | — | ✔ | — | — |
+| `GET /api/usuarios/permisos` | — | — | — | — | ✔ | ✔ | ✔ |
 | `GET /api/integridad`, `GET /api/bitacora` | — | — | — | — | ✔ | — | ✔ |
 | `GET /api/tablero/resumen`, `/api/costos`, `/api/fiestas/preparacion`, `/api/analisis/pareto-ajustes` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
 | `GET /api/alertas`, `/api/alertas/resumen`, `/api/alertas/:id`, `/api/alertas/umbrales`, `/api/semaforo`, `/api/promociones` | — | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
@@ -59,6 +63,13 @@ Notas:
   - R07: todo;
   - R08 y R09: solo consulta.
 - **Frontend, pantalla Aprobaciones:** R07 decide y R08 la ve en solo lectura.
+- **Frontend, pantallas nuevas:**
+  - **Análisis:** R02, R07 y R08 (solo R07 recalcula el ABC).
+  - **Fiestas:** R02 y R07 operan, R08 lee.
+  - **Costos:** R07 y R08 (solo R07 cambia los parámetros).
+  - **Administración:** R07 y R09 operan; R08 lee usuarios y configuración.
+  - El backend de esas consultas sigue abierto a los roles de lectura; el frontend las acota según la especificación.
+- **Restablecer datos:** mientras corre, cualquier otra petición recibe 503 `DEMO_RESTABLECIENDO`.
 - **Alertas para R06:** `GET /api/alertas` y `/api/alertas/resumen` devuelven solo su almacén (el filtro `almacen` no lo saca de ahí), y `GET /api/alertas/:id` de otro almacén responde 403 `ALMACEN_AJENO`.
 - **Frontend:** el menú y las pantallas siguen esta tabla. R01 entra a Artículos y a la ficha, pero solo ve la disponibilidad. La pestaña Umbrales del Centro de alertas la edita R07, la leen R08 y R09, y la bitácora de umbrales la ven R07 y R09.
 - **R03 Asistente de pedidos (`AST-01`):** consulta (como los roles de lectura) y solo atiende AL11. No registra operaciones.
