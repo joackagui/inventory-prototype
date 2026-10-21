@@ -1,0 +1,15 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Modelo mínimo para probar la conexión; el resto del esquema llega en las siguientes tareas.
+model Almacen {
+  codigo       String @id
+  nombre       String
+  leadTimeDias Int
+}
