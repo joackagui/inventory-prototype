@@ -5,7 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from 'dotenv';
 import { pathToFileURL } from 'node:url';
 import { PrismaClient, type TipoMovimiento } from '../src/generated/prisma/client.js';
-import { calcularParametros, clasificarAbc, type ClaseAbc } from '../src/inventario/calculos/formulas.js';
+import { calcularParametros, clasificarAbc, type ClaseAbc, type ParametrosCalculados } from '../src/inventario/calculos/formulas.js';
 import { evaluarAlertas } from '../src/alertas/evaluacion.js';
 import { obtenerStock } from '../src/inventario/stock.js';
 
@@ -179,7 +179,10 @@ function consumirFifo(propias: CapaSim[], cantidad: number, alConsumir: (capa: C
 }
 
 // Construye entradas y salidas para que el saldo final y las capas restantes coincidan exactamente con el objetivo.
-function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number], clase: ClaseAbc, d: number, sigma: number, ss: number, obj: Objetivo) {
+// Reposición demorada (días hábiles del historial) en artículos que ya tienen alertas en el estado base.
+const EXCEPCIONES: Record<string, [number, number]> = { 'LP:ART-10035': [40, 49], 'LP:ART-10048': [55, 66] };
+
+function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number], clase: ClaseAbc, d: number, sigma: number, p: ParametrosCalculados, obj: Objetivo) {
   const usuario = `ALM-${alm.corto}`;
   const ubicacion = art.retornable ? 'PICK-A' : 'PICK-B';
   const total = obj.disponible + (obj.reservado ?? 0);
@@ -208,12 +211,38 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
   const t1 = finales.length ? finales[0].t : N;
   let salidaDesdeT1 = 0;
   for (let t = t1; t < N; t++) salidaDesdeT1 += salida(t);
-  const colchon = finales.length ? Math.min(ss, salidaDesdeT1) : 0;
+  // Stock con que llega el día t1 (antes de las capas finales): debe consumirse entero después para que las capas cuadren.
+  const colchon = finales.length ? Math.min(p.rop + d, salidaDesdeT1) : 0;
 
-  // Entradas periódicas previas: cada una cubre exactamente las salidas hasta la siguiente (la primera trae además el colchón).
-  const periodo = clase === 'C' ? 10 : 5;
-  const inicios: number[] = [];
-  for (let t = 0; t < t1; t += periodo) inicios.push(t);
+  // Historial sano antes de t1: se repone el lote Q cuando el stock no cubre ROP + d; las ventas no superan el stock.
+  const excepcion = EXCEPCIONES[`${alm.corto}:${art.codigo}`];
+  const previas: { t: number; cantidad: number }[] = [];
+  let stock = 0;
+  for (let t = 0; t < t1; t++) {
+    const fija = traslado?.t === t ? traslado.n : 0;
+    const demorada = excepcion && t >= excepcion[0] && t <= excepcion[1];
+    if (t === 0 || stock < fija || (!demorada && stock - fija <= p.rop + d)) {
+      const cantidad = t === 0 ? p.stockMaximo : p.loteTraslado + fija;
+      previas.push({ t, cantidad });
+      stock += cantidad;
+    }
+    ventas[t] = Math.min(ventas[t], stock - fija);
+    stock -= ventas[t] + fija;
+  }
+  // Ajuste exacto: las últimas entradas se recortan (o la última se agranda) para llegar a t1 con el colchón.
+  // Después de la última entrada el stock solo baja, así que nunca queda negativo.
+  let delta = colchon - stock;
+  while (delta < 0 && previas.length) {
+    const ultima = previas.at(-1)!;
+    if (ultima.cantidad + delta > 0) {
+      ultima.cantidad += delta;
+      delta = 0;
+    } else {
+      delta += ultima.cantidad;
+      previas.pop();
+    }
+  }
+  if (delta > 0) previas.at(-1)!.cantidad += delta;
   const entradas = new Map<number, Omit<CapaSim, 'articulo' | 'almacen' | 'ubicacion' | 'fechaEntrada'>>();
   // Lote único por artículo y almacén: los de las capas finales quedan limpios; un histórico que coincida lleva sufijo.
   const loteDe = (elaboracion: Date) => `${alm.corto}-${art.codigo.slice(4)}-${yymmdd(elaboracion)}`;
@@ -224,10 +253,7 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
     usados.add(lote);
     return lote;
   };
-  inicios.forEach((t, j) => {
-    let cantidad = j === 0 ? colchon : 0;
-    for (let u = t; u < Math.min(inicios[j + 1] ?? t1, t1); u++) cantidad += salida(u);
-    if (cantidad === 0) return;
+  previas.forEach(({ t, cantidad }, j) => {
     const elaboracion = masDias(DIAS[t], -3);
     entradas.set(t, {
       lote: loteHistorico(elaboracion),
@@ -235,7 +261,7 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
       fechaVencimiento: masDias(elaboracion, art.vida),
       cantidadInicial: cantidad,
       cantidadRestante: cantidad,
-      costo: r2(art.costo * (0.97 + (0.03 * j) / inicios.length)),
+      costo: r2(art.costo * (0.97 + (0.03 * j) / previas.length)),
     });
   });
   finales.forEach((f, i) => {
@@ -357,7 +383,7 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
           ultimoConteo: F(ULTIMO_CONTEO_ESPECIAL[clave] ?? ULTIMO_CONTEO[clase]),
         },
       });
-      const r = simular(alm, art, clase, d, sigma, p.stockSeguridad, ESCENARIO[alm.corto][art.codigo]);
+      const r = simular(alm, art, clase, d, sigma, p, ESCENARIO[alm.corto][art.codigo]);
       saldos[clave] = r.saldoDiario;
       if (r.piezasTraslado.length) piezasTraslado = r.piezasTraslado;
     }
