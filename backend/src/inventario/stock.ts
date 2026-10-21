@@ -1,11 +1,14 @@
+import { NotFoundException } from '@nestjs/common';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { calcularPosicion, cobertura, trasladoPropuesto, vidaRestanteDias } from './calculos/formulas.js';
 
 // Acepta el id numérico o el código ("CD-LP-01").
-export function resolverAlmacen(prisma: PrismaClient, valor: string) {
-  return prisma.almacen.findUniqueOrThrow({
+export async function resolverAlmacen(prisma: PrismaClient, valor: string) {
+  const almacen = await prisma.almacen.findUnique({
     where: /^\d+$/.test(valor) ? { id: Number(valor) } : { codigo: valor },
   });
+  if (!almacen) throw new NotFoundException(`Almacén ${valor} no existe`);
+  return almacen;
 }
 
 // Estados del stock por artículo en un almacén (sección 6). Stock total = disponible + reservado (+ cuarentena).

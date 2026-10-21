@@ -1,19 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { SimulacionService } from '../simulacion/simulacion.service.js';
 
 @Controller('salud')
 export class SaludController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly simulacion: SimulacionService) {}
 
   @Get()
   async salud() {
-    let baseDeDatos: 'conectada' | 'sin conexión' = 'conectada';
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      // Leer la fecha simulada también comprueba la conexión con PostgreSQL.
+      return { estado: 'ok', baseDeDatos: 'conectada', fechaSimulada: await this.simulacion.fechaSimulada() };
     } catch {
-      baseDeDatos = 'sin conexión';
+      return { estado: 'ok', baseDeDatos: 'sin conexión', fechaSimulada: null };
     }
-    // fechaSimulada se conectará al módulo de simulación más adelante.
-    return { estado: 'ok', baseDeDatos, fechaSimulada: null };
   }
 }

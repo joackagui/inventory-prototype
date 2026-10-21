@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { SimulacionService } from './simulacion.service.js';
 
-@Module({})
+@Module({
+  providers: [SimulacionService],
+  exports: [SimulacionService],
+})
 export class SimulacionModule {}

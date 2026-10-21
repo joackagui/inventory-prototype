@@ -48,14 +48,15 @@ export interface ResultadoAbc extends EntradaAbc {
 // Pareto por venta diaria en dólares (precio × d): A hasta 80% acumulado, B hasta 95%, C el resto.
 export function clasificarAbc(articulos: EntradaAbc[]): ResultadoAbc[] {
   const conVenta = articulos
-    .map((a) => ({ ...a, ventaDiaria: a.precio * a.demandaDiaria }))
+    .map((a) => ({ ...a, ventaDiaria: Math.round(a.precio * a.demandaDiaria * 100) / 100 }))
     .sort((a, b) => b.ventaDiaria - a.ventaDiaria);
   const total = conVenta.reduce((s, a) => s + a.ventaDiaria, 0);
+  const r2 = (x: number) => Math.round(x * 100) / 100;
   let acumulado = 0;
   return conVenta.map((a, i) => {
     acumulado += a.ventaDiaria;
-    const porcentaje = total ? (a.ventaDiaria / total) * 100 : 0;
-    const porcentajeAcumulado = total ? (acumulado / total) * 100 : 0;
+    const porcentaje = total ? r2((a.ventaDiaria / total) * 100) : 0;
+    const porcentajeAcumulado = total ? r2((acumulado / total) * 100) : 0;
     // El primer artículo siempre es A, aunque él solo supere el 80%.
     const clase: ClaseAbc = i === 0 || porcentajeAcumulado <= 80 ? 'A' : porcentajeAcumulado <= 95 ? 'B' : 'C';
     return { ...a, porcentaje, porcentajeAcumulado, clase };
