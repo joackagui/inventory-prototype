@@ -62,6 +62,7 @@ describe('Parámetros, fecha simulada y permisos', () => {
     const r08 = await como('GER-01').get('/stock?almacenId=CD-LP-01');
     expect(r08.body.articulos[0].costoFifo).toBe(12.4);
     expect((await como('GER-01').get('/movimientos?almacen=CD-LP-01&tamano=5')).body).toMatchObject({ pagina: 1, tamano: 5 });
+    expect((await como('LOG-01').post('/pedidos', { cliente: 'Cliente 001', almacen: 'CD-SC-01', lineas: [{ articulo: 'ART-10022', cantidad: 1 }] })).status).toBe(201); // R07 simula pedidos para la demo
     expect((await como('GER-01').post('/pedidos', { cliente: 'Cliente 001', almacen: 'CD-LP-01', lineas: [{ articulo: 'ART-10021', cantidad: 1 }] })).status).toBe(403);
     expect((await como('GER-01').post('/ajustes', { almacen: 'CD-LP-01', articulo: 'ART-10021', cantidad: -1, motivo: 'ROTURA' })).status).toBe(403);
     expect((await como('SUP-01').put('/simulacion/fecha', { fecha: '2027-07-01' })).status).toBe(403);

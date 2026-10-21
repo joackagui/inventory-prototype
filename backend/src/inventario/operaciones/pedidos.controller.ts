@@ -11,7 +11,7 @@ export class PedidosController {
 
   /** Crea un pedido simulado y reserva el stock (todo o nada). Sin stock suficiente: 409 con el faltante y pedido PENDIENTE_REVISION. */
   @Post()
-  @Roles('R01')
+  @Roles('R01', 'R07')
   crear(@Body() dto: PedidoDto, @UsuarioActual() u: UsuarioSesion) {
     return this.servicio.crear(dto, u);
   }
