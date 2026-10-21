@@ -20,15 +20,22 @@ Todo en español; frontend pensado para proyectarse en vivo.
 ## Estructura
 ```
 docs/ESPECIFICACION.md   fuente de verdad del proyecto
+docs/MODELO_DATOS.md     modelo de datos, decisiones y escenario del seed
 docker-compose.yml       PostgreSQL 16
 .env.example             credenciales de ejemplo (copiar a .env, no se sube)
 package.json             scripts de la raíz
 backend/
-  prisma/                schema.prisma y migraciones (prisma.config.ts lee ../.env)
+  prisma/                schema.prisma, migraciones, seed.ts, verificar-integridad.ts (prisma.config.ts lee ../.env)
   src/
     prisma/              PrismaService global
     salud/               GET /api/salud
-    inventario/ alertas/ articulos/ almacenes/ usuarios/ simulacion/   módulos de dominio
+    inventario/calculos/ fórmulas puras (SS, ROP, Q, Máx, ABC, fiestas, costos) + tests
+    inventario/stock.ts  cálculo de estados del stock (lo usan la API, el seed y la verificación)
+    inventario/          GET /api/stock, /api/abc, /api/fiestas
+    articulos/           GET /api/articulos, /:codigo/capas, /:codigo/kardex
+    almacenes/           GET /api/almacenes
+    simulacion/          fecha simulada (ConfiguracionSistema)
+    alertas/ usuarios/   módulos aún vacíos
     generated/prisma/    cliente generado (no se sube)
 frontend/
   src/                   App.tsx (pantalla de salud), main.tsx (router + React Query)
@@ -38,6 +45,10 @@ frontend/
 - `npm run db:up` / `npm run db:down` — iniciar / detener PostgreSQL.
 - `npm run install:all` — instalar dependencias de backend y frontend.
 - `npm run db:migrate` — aplicar migraciones de Prisma.
+- `npm run db:seed` — vaciar y sembrar el escenario del 30/06/2027 (determinista).
+- `npm run db:reset` — borrar la base, migrar, sembrar y verificar integridad.
+- `npm run db:verificar` — comprobar integridad de capas y movimientos.
+- `npm test` — tests unitarios de las fórmulas (Vitest, viene con NestJS 12).
 - `npm run backend:dev` — backend en http://localhost:3000 (prefijo `/api`).
 - `npm run frontend:dev` — frontend en http://localhost:5173.
 - `npm --prefix frontend run build` / `npm --prefix backend run build` — compilar.
@@ -48,6 +59,11 @@ frontend/
 - Commits pequeños, formato `tipo: descripción` (feat, fix, docs, chore).
 - No modificar `docs/ESPECIFICACION.md` sin avisar antes al usuario.
 - Todos los cálculos (SS, ROP, Q, Máx, FIFO, ABC, alertas, costos) se hacen en el backend; el frontend solo muestra.
-- Los movimientos de inventario nunca se borran ni se editan (las correcciones son movimientos nuevos o ajustes).
+- Los movimientos de inventario nunca se borran ni se editan (las correcciones son movimientos nuevos o ajustes). Un trigger en PostgreSQL lo impone; el seed usa TRUNCATE.
+- SS, ROP, Q y Máx se obtienen siempre con `calcularParametros()` de `src/inventario/calculos/formulas.ts`; redondeo de SS con Math.round. No duplicar fórmulas en otro lugar.
+- El stock físico se mueve solo con los tipos de `TIPOS_FISICOS`; RESERVA, CONTEO, CUARENTENA y ENVASE_* son de control.
+- Todo lo que use "hoy" usa la fecha simulada (`SimulacionService`), nunca la fecha real.
+- Cambios de esquema: nueva migración en `backend/prisma/migrations` (no editar las aplicadas). Si cambian datos del escenario, actualizar docs/MODELO_DATOS.md y correr `npm run db:reset` + `npm run db:verificar`.
+- Prisma bloquea `migrate reset` ejecutado por un agente: pedir permiso explícito al usuario antes de correrlo.
 
 Ver docs/ESPECIFICACION.md para el detalle completo.

@@ -22,8 +22,9 @@ npm run db:up
 # 3. Instalar dependencias del backend y del frontend
 npm run install:all
 
-# 4. Crear las tablas en la base de datos (migraciones de Prisma)
+# 4. Crear las tablas y cargar el escenario de demo (30/06/2027)
 npm run db:migrate
+npm run db:seed
 
 # 5. Iniciar el backend (déjalo abierto en una terminal)
 npm run backend:dev
@@ -50,10 +51,31 @@ Abre <http://localhost:5173>: debe decir **Backend 🟢 ok** y **Base de datos �
 | `npm run db:up`        | Inicia PostgreSQL en Docker                      |
 | `npm run db:down`      | Detiene PostgreSQL (los datos se conservan)      |
 | `npm run db:migrate`   | Aplica las migraciones de Prisma                 |
+| `npm run db:seed`      | Vacía las tablas y carga el escenario de demo    |
+| `npm run db:reset`     | Borra la base, migra, siembra y verifica         |
+| `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
+| `npm test`             | Tests de las fórmulas de inventario              |
 | `npm run backend:dev`  | Backend NestJS con recarga automática            |
 | `npm run frontend:dev` | Frontend Vite con recarga automática             |
 
 Para borrar también los datos de la base: `docker compose down -v`.
+
+## Resetear los datos de la demo
+
+Si durante una prueba se ensuciaron los datos, vuelve al escenario inicial del 30/06/2027 con:
+
+```bash
+npm run db:seed     # rápido: vacía las tablas y vuelve a sembrar
+npm run db:reset    # completo: borra la base, aplica migraciones, siembra y verifica
+```
+
+El seed es determinista: siempre produce exactamente los mismos datos. El escenario está documentado en [docs/MODELO_DATOS.md](docs/MODELO_DATOS.md).
+
+## API de solo lectura
+
+`GET /api/almacenes` · `/api/articulos` · `/api/stock?almacenId=CD-LP-01` · `/api/articulos/ART-10021/capas` · `/api/articulos/ART-10021/kardex?almacenId=CD-LP-01` · `/api/abc` · `/api/fiestas` · `/api/salud`
+
+`almacenId` acepta el id numérico o el código del almacén.
 
 ## Problemas comunes
 
