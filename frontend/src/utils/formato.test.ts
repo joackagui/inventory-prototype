@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { antiguedad, compacto, dinero, fecha, fechaCorta, numero, porcentaje } from './formato'
+import { antiguedad, compacto, decimal, dinero, fecha, fechaCorta, numero, porcentaje } from './formato'
 
 describe('formateadores regionales', () => {
   it('números con separador de miles y cifras fijas', () => {
@@ -7,6 +7,10 @@ describe('formateadores regionales', () => {
     expect(numero(7.06, 1)).toBe('7.1')
     expect(numero(-6)).toBe('-6')
     expect(numero(null)).toBe('—')
+  })
+
+  it('decimal: hasta dos decimales sin ceros sobrantes', () => {
+    expect([1.3, 14.62, 17, 2.05, 1260].map(decimal)).toEqual(['1.3', '14.62', '17', '2.05', '1,260'])
   })
 
   it('dinero en USD con dos decimales', () => {

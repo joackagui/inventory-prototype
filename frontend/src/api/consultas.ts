@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { type FiltroAlmacen, useSesion } from '../sesion/Sesion'
 import { api } from './cliente'
-import type { Ajuste, Alerta, AlertaDetalle, Capa, CapaListada, Cliente, ColorAlerta, FilaArticulo, Pedido, Promocion, PropuestaTraslado, SaldoEnvase, StockAlmacen, Traslado, Ubicacion, FilaKardex, Pagina, ResumenAlertas, ResumenArticulo, ResumenTablero, Semaforo, SerieStock, StockPreventista, UmbralDetalle, Usuario } from './tipos'
+import type { ClaveConfiguracion, Costos, ConteosAnalisis, Escenario, EventoIntegracion, FilaAbc, Fiesta, ParetoAjustes, Rotacion, UsuarioPermisos, Ajuste, Alerta, AlertaDetalle, Capa, CapaListada, Cliente, ColorAlerta, FilaArticulo, Pedido, Promocion, PropuestaTraslado, SaldoEnvase, StockAlmacen, Traslado, Ubicacion, FilaKardex, Pagina, ResumenAlertas, ResumenArticulo, ResumenTablero, Semaforo, SerieStock, StockPreventista, UmbralDetalle, Usuario } from './tipos'
 
 export interface Almacen {
   id: number
@@ -248,4 +248,61 @@ export interface PreviaRecepcion {
 export function useRecepcionPrevia(p: { almacen?: string; articulo?: string; costoUnitario?: number; fechaElaboracion?: string; lote?: string }) {
   const { usuario } = useSesion()
   return useQuery({ queryKey: ['recepcion-previa', usuario, p], queryFn: () => api<PreviaRecepcion>(`/operaciones/recepcion/previa?${qs(p)}`), enabled: !!p.almacen && !!p.articulo, retry: false, meta: { silencioso: true } })
+}
+
+const almacenQs = (almacen: FiltroAlmacen) => (almacen === 'TODOS' ? '' : almacen)
+
+export function useAbc() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['abc', usuario], queryFn: () => api<FilaAbc[]>('/abc') })
+}
+
+export function useParetoAjustes(p: { almacen: FiltroAlmacen; desde?: string; hasta?: string }) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['ajustes', usuario, 'pareto', p], queryFn: () => api<ParetoAjustes>(`/analisis/pareto-ajustes?${qs({ almacenId: almacenQs(p.almacen), desde: p.desde, hasta: p.hasta })}`) })
+}
+
+export function useRotacion(almacen: FiltroAlmacen) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['rotacion', usuario, almacen], queryFn: () => api<Rotacion>(`/analisis/rotacion?${qs({ almacenId: almacenQs(almacen) })}`) })
+}
+
+export function useConteosAnalisis(almacen: FiltroAlmacen) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['conteos', usuario, almacen], queryFn: () => api<ConteosAnalisis>(`/analisis/conteos?${qs({ almacenId: almacenQs(almacen) })}`) })
+}
+
+export function useFiestas(almacen: FiltroAlmacen) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['fiestas', usuario, almacen], queryFn: () => api<{ fechaOperacion: string; fiestas: Fiesta[] }>(`/fiestas/preparacion?${qs({ almacenId: almacenQs(almacen) })}`) })
+}
+
+export function useCostos(almacen: FiltroAlmacen, mes: string | undefined, tasas: Partial<Costos['tasas']> = {}, activo = true) {
+  const { usuario } = useSesion()
+  return useQuery({
+    queryKey: ['costos', usuario, almacen, mes, tasas],
+    queryFn: () => api<Costos>(`/costos?${qs({ almacenId: almacenQs(almacen), mes, ...tasas })}`),
+    enabled: activo,
+    placeholderData: (previo) => previo,
+  })
+}
+
+export function useConfiguracion() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['configuracion', usuario], queryFn: () => api<ClaveConfiguracion[]>('/configuracion') })
+}
+
+export function useEscenarios() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['escenarios', usuario], queryFn: () => api<Escenario[]>('/simulacion/escenarios'), staleTime: Infinity })
+}
+
+export function useEventosIntegracion(activo: boolean) {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['integracion', usuario], queryFn: () => api<EventoIntegracion[]>('/integracion/eventos'), enabled: activo })
+}
+
+export function usePermisosUsuarios() {
+  const { usuario } = useSesion()
+  return useQuery({ queryKey: ['permisos', usuario], queryFn: () => api<UsuarioPermisos[]>('/usuarios/permisos') })
 }

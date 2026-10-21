@@ -335,7 +335,9 @@ export interface Promocion extends ConEfecto {
   id: number
   nombre: string
   tipo: string
-  estado: 'PROPUESTA' | 'BORRADOR' | 'ACTIVA' | 'FINALIZADA'
+  estado: 'PROPUESTA' | 'BORRADOR' | 'ACTIVA' | 'FINALIZADA' | 'RECHAZADA'
+  comentarioResolucion: string | null
+  rechazadaPor: { codigo: string } | null
   fechaInicio: string
   fechaFin: string
   topeCajas: number
@@ -375,4 +377,139 @@ export interface Ubicacion {
   codigo: string
   descripcion: string
   vendible: boolean
+}
+
+export interface FilaAbc {
+  codigo: string
+  descripcion: string
+  precio: number
+  demandaDiaria: number
+  ventaDiaria: number
+  porcentaje: number
+  porcentajeAcumulado: number
+  clase: 'A' | 'B' | 'C'
+  claseActual: 'A' | 'B' | 'C'
+  nivelServicio: number
+  z: number
+  frecuenciaConteoDias: number
+}
+
+export interface ParetoAjustes {
+  total: number
+  motivos: { motivo: string; ajustes: number; unidades: number; valor: number; porcentaje: number; porcentajeAcumulado: number }[]
+}
+
+export interface Rotacion {
+  desde: string
+  hasta: string
+  umbrales: { alta: number; media: number }
+  articulos: { codigo: string; descripcion: string; costoVendido90: number; valorStockPromedio: number; rotacionAnual: number | null; diasInventario: number | null; coberturaDias: number; nivel: 'ALTA' | 'MEDIA' | 'BAJA' | 'SIN_DATOS' }[]
+}
+
+export interface ConteosAnalisis {
+  toleranciaPct: number
+  exactitud: { porcentaje: number | null; conteos: number; sinDiferencia: number }
+  conteos: { id: number; fecha: string; tipo: string; articulo: string; almacen: string; ubicacion: string; usuario: string; sistema: number; contado: number; diferencia: number; porcentaje: number; superaTolerancia: boolean }[]
+}
+
+export type EstadoHito = 'PASADO' | 'EN_CURSO' | 'PROXIMO'
+
+export interface Hito {
+  clave: string
+  titulo: string
+  desde: string
+  hasta: string
+  estado: EstadoHito
+  responsables: string[]
+  accion: string
+}
+
+export type EstadoFiesta = 'OK' | 'EN_RIESGO' | 'CRITICO' | 'PASADA'
+
+export interface ArticuloFiesta {
+  codigo: string
+  descripcion: string
+  demandaBase: number
+  factor: number
+  leadTimeDias: number
+  stockSeguridad: number
+  diasFiesta: number
+  ropFiesta: number
+  qFiesta: number
+  maximoFiesta: number
+  pronostico: number
+  posicion: number
+  brecha: number
+  estado: 'OK' | 'EN_RIESGO' | 'CRITICO'
+}
+
+export interface Fiesta {
+  id: number
+  nombre: string
+  fechaInicio: string
+  fechaFin: string
+  diasFiesta: number
+  factor: number
+  zonas: string[]
+  semanasPreparacion: number
+  diasFaltan: number
+  pasada: boolean
+  enVentanaPreparacion: boolean
+  ventanaDesde: string
+  estado: EstadoFiesta
+  promocionSugerida: { tipo: string; desde: string; hasta: string }
+  cronograma: Hito[]
+  almacenes: { almacen: string; articulos: ArticuloFiesta[] }[]
+}
+
+export interface Costos {
+  mes: string
+  diasConsiderados: number
+  tasas: { tasaConservacionAnual: number; costoPorTraslado: number; valorPedidoAgotamiento: number; margenAgotamiento: number; costoAgotamientoPorPedido: number }
+  articulos: { codigo: string; descripcion: string; unidadesVendidas: number; adquisicion: number; stockPromedioUnidades: number; valorStockPromedio: number; conservacion: number; traslados: number; pedido: number; pedidosConFaltante: number; agotamiento: number; total: number }[]
+  total: { adquisicion: number; conservacion: number; pedido: number; agotamiento: number; total: number; valorStockPromedio: number; traslados: number; pedidosConFaltante: number }
+}
+
+export interface Comprobacion {
+  nombre: string
+  ok: boolean
+  revisados: number
+  excepciones: string[]
+  ms: number
+}
+
+export interface Integridad {
+  ok: boolean
+  capas: number
+  comprobaciones: Comprobacion[]
+}
+
+export interface Escenario {
+  nombre: string
+  fecha: string
+  descripcion: string
+}
+
+export interface EventoIntegracion {
+  id: number
+  tipo: string
+  referencia: string
+  estado: 'REINTENTO' | 'COLA_ERRORES' | 'PROCESADO'
+  intentos: number
+  fechaOperacion: string
+}
+
+export interface UsuarioPermisos {
+  codigo: string
+  nombre: string
+  rol: Rol
+  rolNombre: string
+  almacen: string | null
+  permisos: string[]
+}
+
+export interface ClaveConfiguracion {
+  clave: string
+  valor: unknown
+  descripcion: string
 }
