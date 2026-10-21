@@ -22,12 +22,14 @@ Todo en español; frontend pensado para proyectarse en vivo.
 docs/ESPECIFICACION.md   fuente de verdad del proyecto
 docs/MODELO_DATOS.md     modelo de datos, motor de inventario, decisiones y escenario del seed
 docs/PERMISOS.md         tabla de permisos por rol y endpoint
+docs/ALERTAS.md          alertas AL01–AL16: evaluador, umbrales, rol, cuándo se evalúa, ciclo de vida
 docker-compose.yml       PostgreSQL 16
 .env.example             credenciales de ejemplo (copiar a .env, no se sube)
 package.json             scripts de la raíz
 backend/
   prisma/                schema.prisma, migraciones, seed.ts (exporta sembrar()), verificar-integridad.ts
   scripts/demo-api.ts    ensayo de la demo por HTTP
+  scripts/demo-alertas.ts  ensayo de la demo de alertas
   test/                  tests de integración (*.e2e-spec.ts) sobre la base inventario_test
   src/
     comun/errores.ts     ErrorNegocio y filtro de errores { codigo, mensaje, detalles }
@@ -39,7 +41,11 @@ backend/
     inventario/integridad.ts  verificación reutilizable (script, GET /api/integridad, tests)
     inventario/operaciones/   recepción, pedidos, traslados, conteos, ajustes, cuarentena, envases, parámetros
     articulos/ almacenes/ salud/   consultas
-    alertas/             vacío: se engancha al evento inventario.cambio
+    alertas/evaluadores.ts  evaluadores puros AL01–AL16, catálogo de roles y acciones, validación de umbrales (+ tests)
+    alertas/evaluacion.ts   evaluación contra la base y ciclo de vida (crear, color, resolver, escalar)
+    alertas/             API de alertas, semáforo y umbrales; escucha inventario.cambio y alertas.evaluar
+    simulacion/integracion.controller.ts  eventos de integración simulados (AL16)
+    inventario/operaciones/promociones.*  promociones propuestas (R02) y aprobadas (R07)
     generated/prisma/    cliente generado (no se sube)
 frontend/
   src/                   App.tsx (pantalla de salud), main.tsx (router + React Query)
@@ -54,6 +60,7 @@ frontend/
 - `npm run db:verificar` — comprobar integridad de capas y movimientos.
 - `npm test` — tests unitarios + integración (Vitest, viene con NestJS 12; integración en la base `inventario_test`).
 - `npm run demo:api` — ensayo de la demo por HTTP (requiere `npm run backend:dev`).
+- `npm run demo:alertas` — ensayo de la demo de alertas (requiere `npm run backend:dev`).
 - Swagger: http://localhost:3000/api/docs
 - `npm run backend:dev` — backend en http://localhost:3000 (prefijo `/api`).
 - `npm run frontend:dev` — frontend en http://localhost:5173.
@@ -73,6 +80,8 @@ frontend/
 - Errores con `ErrorNegocio(status, CODIGO, 'mensaje en español', detalles)`.
 - DTOs en archivos `*.dto.ts` con class-validator y JSDoc `@example` (el plugin de Swagger los lee).
 - Cada operación nueva lleva su test de integración y debe dejar `GET /api/integridad` en OK.
+- Alertas: la lógica de umbrales va en `alertas/evaluadores.ts` (pura, con tests); los datos y el ciclo de vida, en `alertas/evaluacion.ts`. Una operación nueva que cambia stock solo necesita `await emitirCambio(...)`; algo que dependa del tiempo o sea global emite `EVENTO_EVALUAR`.
+- Toda alerta usa la fecha simulada y umbrales de `ConfiguracionSistema.umbralesAlertas`; nunca la fecha real.
 - Todo lo que use "hoy" usa la fecha simulada (`SimulacionService`), nunca la fecha real.
 - Cambios de esquema: nueva migración en `backend/prisma/migrations` (no editar las aplicadas). Si cambian datos del escenario, actualizar docs/MODELO_DATOS.md y correr `npm run db:reset` + `npm run db:verificar`.
 - Prisma bloquea `migrate reset` ejecutado por un agente: pedir permiso explícito al usuario antes de correrlo.

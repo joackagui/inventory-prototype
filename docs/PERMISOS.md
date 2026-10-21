@@ -33,9 +33,19 @@ Usuarios: `PV-014` (R01) · `SUP-01` (R02) · `ALM-LP`, `ALM-CB`, `ALM-SC` (R06,
 | `PUT /api/configuracion/:clave` (umbrales, tasas, tolerancia) | — | — | — | ✔ | — | — |
 | `PUT /api/simulacion/fecha`, `POST /api/simulacion/avanzar`, `POST /api/simulacion/restablecer` | — | — | — | ✔ | — | ✔ |
 | `GET /api/integridad`, `GET /api/bitacora` | — | — | — | ✔ | — | ✔ |
+| `GET /api/alertas`, `/api/alertas/resumen`, `/api/alertas/:id`, `/api/alertas/umbrales`, `/api/semaforo`, `/api/promociones` | — | ✔ | ✔ | ✔ | ✔ | ✔ |
+| `POST /api/alertas/:id/atender` | — | ✔ si es responsable | ✔ si es responsable y de su almacén | ✔ | — | ✔ si es responsable (AL16) |
+| `POST /api/alertas/evaluar` | — | — | — | ✔ | — | ✔ |
+| `PUT /api/alertas/umbrales/:clave` | — | — | — | ✔ | — | — |
+| `POST /api/promociones` (propuesta) | — | ✔ | — | — | — | — |
+| `POST /api/promociones/:id/aprobar` (con `referenciaCorreo`) y `/cerrar` | — | — | — | ✔ | — | — |
+| `POST /api/simulacion/falla-integracion`, `GET /api/integracion/eventos` | — | — | — | ✔ | — | ✔ |
+| `POST /api/integracion/eventos/:id/reprocesar` | — | — | — | — | — | ✔ |
 
 Notas:
+- **Diferencia al recibir un traslado:** queda como ajuste PENDIENTE con motivo `DIFERENCIA_RECEPCION` sobre el stock en tránsito, registrado por el R06 del destino. Solo R07 lo aprueba (la cantidad sale del tránsito como merma al costo FIFO) o lo rechaza (la mercadería pasa al destino y el R06 la recuenta). Este motivo no se puede registrar a mano.
+- **Atender una alerta:** puede hacerlo uno de sus roles responsables (ver docs/ALERTAS.md) o R07. Un R06 solo atiende alertas de su almacén. R08 solo lee. AL11 es de R03, que no existe como usuario, así que en la práctica la atiende R07.
 - **R07** también puede registrar operaciones de almacén en los tres almacenes, porque la sección 11 le da alcance sobre los 3. Igual no puede aprobar lo que él mismo registró.
-- **R02 y R08** solo leen. R02 consulta los envases sin devolver con `GET /api/envases/saldos`. Proponer promociones (R02) queda para más adelante: hoy no hay endpoint.
-- **R09** ve los usuarios (`GET /api/usuarios`), la bitácora y la fecha simulada. Reprocesar eventos (AL16) llegará con las alertas.
+- **R02** propone promociones y consulta los envases sin devolver; **R08** solo lee.
+- **R09** ve los usuarios (`GET /api/usuarios`), la bitácora, la fecha simulada y los eventos de integración, y es quien los reprocesa (AL16).
 - Los permisos están en los decoradores `@Roles(...)` de cada controlador y en `exigirAlmacen()` (`backend/src/usuarios/autorizacion.ts`).

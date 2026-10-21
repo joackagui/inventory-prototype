@@ -56,6 +56,7 @@ Abre <http://localhost:5173>: debe decir **Backend 🟢 ok** y **Base de datos �
 | `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
 | `npm test`             | Tests unitarios y de integración (base `inventario_test`) |
 | `npm run demo:api`     | Ensayo de la demo por HTTP (con el backend en marcha) |
+| `npm run demo:alertas` | Ensayo de la demo de alertas (con el backend en marcha) |
 | `npm run backend:dev`  | Backend NestJS con recarga automática            |
 | `npm run frontend:dev` | Frontend Vite con recarga automática             |
 
@@ -96,6 +97,30 @@ npm run demo:api
 ```
 
 Vuelve a sembrar el escenario y recorre por la API pedido → despacho → traslado → recepción con diferencia → conteo → ajuste → aprobación → cuarentena. Muestra el resultado de cada paso y las alertas que deberían aparecer. Con `npm run demo:api -- --sin-sembrar` no vuelve a sembrar.
+
+## Alertas
+
+El backend evalúa 16 alertas tipo semáforo (AL01–AL16) con la fecha simulada:
+- después de cada operación;
+- al cambiar la fecha;
+- al arrancar.
+
+El estado base del 30/06/2027 tiene 19 alertas vigentes. Para verlas:
+
+```bash
+curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/alertas/resumen'
+curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/semaforo?almacenId=CD-LP-01'
+```
+
+`npm run demo:alertas` recorre la historia completa:
+1. estado base;
+2. un despacho que dispara una alerta;
+3. una recepción que la resuelve;
+4. avanzar la fecha y ver los vencimientos;
+5. escalamiento;
+6. falla de integración y su reproceso.
+
+Umbrales, roles y reglas: [docs/ALERTAS.md](docs/ALERTAS.md).
 
 ## Tests
 
