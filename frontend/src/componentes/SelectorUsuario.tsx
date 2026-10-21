@@ -32,7 +32,7 @@ export function SelectorUsuario() {
         </span>
         <span className="hidden leading-tight sm:block">
           <span className="block text-sm font-semibold">{usuario?.codigo ?? '…'}</span>
-          <span className="block max-w-44 truncate text-xs text-suave">{usuario ? `${usuario.rol.codigo} · ${usuario.nombre}` : 'Cargando'}</span>
+          <span className="block max-w-32 truncate text-xs text-suave 2xl:max-w-44">{usuario ? `${usuario.rol.codigo} · ${usuario.nombre}` : 'Cargando'}</span>
         </span>
         <ChevronDown aria-hidden className="size-4 text-suave" />
       </Menu.Trigger>

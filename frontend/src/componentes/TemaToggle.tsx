@@ -23,8 +23,8 @@ export function PresentacionToggle() {
       className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium ${presentacion ? 'border-acento bg-acento-suave text-acento' : 'border-borde bg-superficie hover:bg-superficie-2'}`}
     >
       <Presentation aria-hidden className="size-5" />
-      <span className="hidden xl:inline">Modo presentación</span>
-      <span className="sr-only xl:hidden">Modo presentación</span>
+      <span className="hidden 2xl:inline">Modo presentación</span>
+      <span className="sr-only 2xl:hidden">Modo presentación</span>
     </button>
   )
 }

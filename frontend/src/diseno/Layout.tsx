@@ -49,7 +49,7 @@ function BarraLateral() {
 
 function BarraSuperior() {
   return (
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-borde bg-fondo/85 px-6 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-borde bg-fondo/85 px-4 py-3 backdrop-blur 2xl:gap-3 2xl:px-6">
       <SelectorAlmacen />
       <RelojSimulado />
       <div className="ml-auto flex items-center gap-2">
