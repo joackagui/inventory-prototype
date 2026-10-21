@@ -31,7 +31,9 @@ export class FiltroErrores implements ExceptionFilter {
       if (typeof r === 'object' && r?.codigo) cuerpo = r;
       else {
         const [codigo, mensaje] = POR_ESTADO[status] ?? ['ERROR', error.message];
-        cuerpo = { codigo, mensaje, detalles: typeof r === 'object' ? (r?.message ?? null) : r };
+        const detalles = typeof r === 'object' ? (r?.message ?? null) : r;
+        // ParseIntPipe: "Validation failed (numeric string is expected)".
+        cuerpo = { codigo, mensaje, detalles: typeof detalles === 'string' && detalles.includes('numeric string') ? 'El identificador debe ser un número entero' : detalles };
       }
     } else if (prismaCodigo === 'P2025') {
       status = 404;
