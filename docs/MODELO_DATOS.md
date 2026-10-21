@@ -130,7 +130,8 @@ Cada capa más nueva tiene +10 días de vida y +1% de costo; la más antigua del
   - LP ART-10063, rotura −6, registrado el 29/06 (más de 24 h);
   - CB ART-20011, diferencia de conteo −4, registrado el 30/06.
 - **Envases:** 4 clientes en La Paz. Cliente 003 tiene 50 cajas pendientes desde el 15/04 (más de 60 días) y Cliente 002 tiene 60 desde el 20/05 (más de 30 días).
-- **Promoción:** liquidación por vencimiento del ART-10063 en La Paz (30/06–12/07, tope 150 cajas, 30% de descuento).
+- **ART-10063 en La Paz:** 2 capas, 40 cajas con 12 días de vida (ya no se despacha: < 15 días) y 110 con 25 días.
+- **Promoción:** liquidación por vencimiento del ART-10063 en La Paz (30/06–12/07, tope 110 cajas, 30% de descuento), solo sobre la capa de 25 días (15 a 30 días de vida).
 - **Último conteo:**
   - clase A: 10/06/2027;
   - clase B: 15/05/2027;
