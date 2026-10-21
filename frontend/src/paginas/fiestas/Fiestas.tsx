@@ -119,7 +119,7 @@ function DetalleFiesta({ f }: { f: Fiesta }) {
                       <thead>
                         <tr className="text-left text-xs font-semibold text-suave">
                           {['Artículo', 'd', 'ROP fiesta', 'Q fiesta', 'Máx fiesta', 'Pronóstico', 'Posición', 'Brecha', 'Estado'].map((t, i) => (
-                            <th key={t} scope="col" className={clsx('pb-2', i > 0 && i < 8 && 'text-right')}>
+                            <th key={t} scope="col" className={clsx('pb-2', i > 0 && i < 8 && 'pl-3 text-right', i === 8 && 'pl-3')}>
                               {t}
                             </th>
                           ))}

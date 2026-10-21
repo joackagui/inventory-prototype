@@ -13,7 +13,7 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 const dia = (f: Date) => f.toISOString().slice(0, 10);
 const masDias = (f: Date, n: number) => new Date(f.getTime() + n * MS_DIA);
 const VIGENTES = { in: ['ABIERTA', 'ATENDIDA'] as ('ABIERTA' | 'ATENDIDA')[] };
-// Rotación anualizada: alta ≥ 30 vueltas/año (≈ 8 días hábiles de inventario), media ≥ 15, baja por debajo.
+// Rotación anualizada: alta ≥ 30 vueltas/año (≈ 8 días de despacho de inventario), media ≥ 15, baja por debajo.
 const UMBRAL_ROTACION = { alta: 30, media: 15 };
 
 // Promedio diario del stock (unidades y valor FIFO) entre `inicio` y `inicio + dias − 1`, desde los movimientos físicos ordenados.

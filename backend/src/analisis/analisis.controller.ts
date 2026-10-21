@@ -10,7 +10,7 @@ import { AnalisisService } from './analisis.service.js';
 export class AnalisisController {
   constructor(private readonly servicio: AnalisisService) {}
 
-  /** KPIs del tablero: valor del inventario, artículos por estado, alertas, cobertura, traslados, exactitud y ventas de 30 días hábiles. */
+  /** KPIs del tablero: valor del inventario, artículos por estado, alertas, cobertura, traslados, exactitud y ventas de 30 días de despacho. */
   @Get('tablero/resumen')
   tablero(@Query() q: AlmacenOpcionalDto) {
     return this.servicio.tablero(q.almacenId);
@@ -28,7 +28,7 @@ export class AnalisisController {
     return this.servicio.preparacionFiestas(q.almacenId);
   }
 
-  /** Rotación anualizada de los últimos 90 días hábiles, días de inventario y cobertura por artículo. */
+  /** Rotación anualizada de los últimos 90 días de despacho, días de inventario y cobertura por artículo. */
   @Get('analisis/rotacion')
   rotacion(@Query() q: AlmacenOpcionalDto) {
     return this.servicio.rotacion(q.almacenId);

@@ -11,7 +11,7 @@ export function GraficoVentas({ serie }: { serie: ResumenTablero['ventasDiarias'
       <p className="mb-3 text-sm text-suave">
         Total del período: <span className="num font-semibold text-texto">{dinero(total)}</span>
       </p>
-      <div className="h-[19rem]" role="img" aria-label={`Ventas de los últimos 30 días hábiles, total ${dinero(total)}`}>
+      <div className="h-[19rem]" role="img" aria-label={`Ventas de los últimos 30 días de despacho, total ${dinero(total)}`}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={serie} margin={{ top: 5, right: 0, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--rejilla)" vertical={false} />

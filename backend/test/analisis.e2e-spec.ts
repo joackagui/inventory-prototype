@@ -42,7 +42,7 @@ describe('Endpoints de análisis: tablero, costos, fiestas y Pareto de ajustes',
     // Cobertura ponderada por demanda = Σ disponible ÷ Σ d (La Paz: 2,440 ÷ 375 ≈ 6.5).
     const params = await prisma.parametroArticuloAlmacen.findMany({ where: { almacen: { codigo: 'CD-LP-01' } } });
     expect(lp.coberturaMediaDias).toBe(Math.round(((920 + 240 + 20 + 0 + 150 + 700 + 210) / params.reduce((s, p) => s + p.demandaDiaria, 0)) * 10) / 10);
-    // Ventas: 30 días hábiles cerrados (hasta el día anterior a la fecha simulada), desde los movimientos de SALIDA.
+    // Ventas: 30 días de despacho cerrados (hasta el día anterior a la fecha simulada), desde los movimientos de SALIDA.
     expect(lp.ventasDiarias).toHaveLength(30);
     expect(lp.ventasDiarias[0].fecha).toBe('2027-05-24');
     const salidas = await prisma.movimiento.findMany({ where: { tipo: 'SALIDA', almacen: { codigo: 'CD-LP-01' }, fechaOperacion: new Date('2027-06-29') }, include: { articulo: true } });

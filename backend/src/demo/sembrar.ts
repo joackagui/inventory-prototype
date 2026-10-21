@@ -178,7 +178,7 @@ function consumirFifo(propias: CapaSim[], cantidad: number, alConsumir: (capa: C
 }
 
 // Construye entradas y salidas para que el saldo final y las capas restantes coincidan exactamente con el objetivo.
-// Reposición demorada (días hábiles del historial) en artículos que ya tienen alertas en el estado base.
+// Reposición demorada (días de despacho del historial) en artículos que ya tienen alertas en el estado base.
 const EXCEPCIONES: Record<string, [number, number]> = { 'LP:ART-10035': [40, 49], 'LP:ART-10048': [55, 66] };
 
 function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number], clase: ClaseAbc, d: number, sigma: number, p: ParametrosCalculados, obj: Objetivo) {
@@ -603,7 +603,7 @@ export async function sembrar(prisma: PrismaClient, { silencioso = false } = {})
   if (silencioso) return;
   // Tabla de verificación de La Paz, calculada con la misma función que usa GET /api/stock.
   const stockLp = await obtenerStock(prisma, almacenId['CD-LP-01'], FECHA_OPERACION);
-  console.log(`\nSeed listo: ${capas.length} capas, ${movimientos.length} movimientos, ${N} días hábiles (${DIAS[0].toISOString().slice(0, 10)} → ${DIAS[N - 1].toISOString().slice(0, 10)}).`);
+  console.log(`\nSeed listo: ${capas.length} capas, ${movimientos.length} movimientos, ${N} días de despacho (${DIAS[0].toISOString().slice(0, 10)} → ${DIAS[N - 1].toISOString().slice(0, 10)}).`);
   console.log('Escenario La Paz al 30/06/2027:');
   console.table(
     stockLp.map((s) => ({

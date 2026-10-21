@@ -95,7 +95,7 @@ function TableroCompleto() {
         >
           {filasGrafico ? <GraficoStock filas={filasGrafico} /> : <Esqueleto className="h-80" />}
         </Tarjeta>
-        <Tarjeta className="2xl:col-span-5" titulo="Ventas diarias" subtitulo="Últimos 30 días hábiles cerrados · USD a precio de lista y unidades (movimientos de salida)">
+        <Tarjeta className="2xl:col-span-5" titulo="Ventas diarias" subtitulo="Últimos 30 días de despacho cerrados · USD a precio de lista y unidades (movimientos de salida)">
           {resumen.data ? <GraficoVentas serie={resumen.data.ventasDiarias} /> : <Esqueleto className="h-80" />}
         </Tarjeta>
 

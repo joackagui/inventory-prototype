@@ -164,9 +164,9 @@ function PestanaRotacion() {
   const { data, isPending } = useRotacion(almacen)
   if (isPending || !data) return <Esqueleto className="h-96" />
   return (
-    <Tarjeta titulo="Rotación anualizada y cobertura" subtitulo={`Costo de lo vendido del ${fecha(data.desde)} al ${fecha(data.hasta)} (90 días hábiles) × 252/90 ÷ valor del stock promedio`}>
+    <Tarjeta titulo="Rotación anualizada y cobertura" subtitulo={`Costo de lo vendido del ${fecha(data.desde)} al ${fecha(data.hasta)} (90 días de despacho) × 252/90 ÷ valor del stock promedio`}>
       <p className="mb-4 text-sm">
-        Rotación <b style={{ color: COLOR_NIVEL.ALTA }}>alta</b> ≥ {data.umbrales.alta} vueltas al año (el inventario dura unos 8 días hábiles o menos), <b style={{ color: COLOR_NIVEL.MEDIA }}>media</b> ≥ {data.umbrales.media} y <b style={{ color: COLOR_NIVEL.BAJA }}>baja</b> por debajo: capital inmovilizado y más riesgo de vencimiento.
+        Rotación <b style={{ color: COLOR_NIVEL.ALTA }}>alta</b> ≥ {data.umbrales.alta} vueltas al año (el inventario dura unos 8 días de despacho o menos), <b style={{ color: COLOR_NIVEL.MEDIA }}>media</b> ≥ {data.umbrales.media} y <b style={{ color: COLOR_NIVEL.BAJA }}>baja</b> por debajo: capital inmovilizado y más riesgo de vencimiento.
       </p>
       <div className="h-64" role="img" aria-label={data.articulos.map((a) => `${a.codigo}: rotación ${numero(a.rotacionAnual, 1)} (${TEXTO_NIVEL[a.nivel]})`).join('; ')}>
         <ResponsiveContainer width="100%" height="100%">
@@ -186,7 +186,7 @@ function PestanaRotacion() {
       <table className="mt-4 w-full text-sm" data-testid="tabla-rotacion">
         <thead>
           <tr className="text-left text-xs font-semibold text-suave">
-            {['Artículo', 'Costo vendido (90 d.h.)', 'Stock promedio', 'Rotación anual', 'Días de inventario', 'Cobertura actual', 'Nivel'].map((t, i) => (
+            {['Artículo', 'Costo vendido (90 días)', 'Stock promedio', 'Rotación anual', 'Días de inventario', 'Cobertura actual', 'Nivel'].map((t, i) => (
               <th key={t} scope="col" className={clsx('pb-2', i > 0 && i < 6 && 'text-right')}>
                 {t}
               </th>
