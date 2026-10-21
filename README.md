@@ -33,7 +33,14 @@ npm run backend:dev
 npm run frontend:dev
 ```
 
-Abre <http://localhost:5173>: debe decir **Backend 🟢 ok** y **Base de datos 🟢 conectada**.
+Abre <http://localhost:5173>: se abre el **Tablero** como `LOG-01` (Coordinador de logística).
+
+- **Barra superior:** almacén (Todos, LP, CB, SC), fecha simulada (−1 / +1 / +7 / +30 días, un día exacto o volver al 30/06/2027), campana de alertas rojas sin atender, tema claro u oscuro y selector de usuario.
+- **Al cambiar de usuario** cambian el menú, los permisos y los datos. Por ejemplo, `PV-014` (preventista) solo ve «Disponible / Agotado».
+
+La API con ejemplos está en <http://localhost:3000/api/docs>.
+
+Capturas del tablero en [docs/capturas](docs/capturas). Cómo está hecho el frontend: [docs/FRONTEND.md](docs/FRONTEND.md).
 
 ## Puertos
 
@@ -54,7 +61,8 @@ Abre <http://localhost:5173>: debe decir **Backend 🟢 ok** y **Base de datos �
 | `npm run db:seed`      | Vacía las tablas y carga el escenario de demo    |
 | `npm run db:reset`     | Borra la base, migra, siembra y verifica         |
 | `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
-| `npm test`             | Tests unitarios y de integración (base `inventario_test`) |
+| `npm test`             | Tests del backend (unitarios e integración, base `inventario_test`) y del frontend |
+| `npm run test:humo`    | Prueba de humo del navegador con Playwright y capturas en docs/capturas |
 | `npm run demo:api`     | Ensayo de la demo por HTTP (con el backend en marcha) |
 | `npm run demo:alertas` | Ensayo de la demo de alertas (con el backend en marcha) |
 | `npm run backend:dev`  | Backend NestJS con recarga automática            |

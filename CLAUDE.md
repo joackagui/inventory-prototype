@@ -23,6 +23,8 @@ docs/ESPECIFICACION.md   fuente de verdad del proyecto
 docs/MODELO_DATOS.md     modelo de datos, motor de inventario, decisiones y escenario del seed
 docs/PERMISOS.md         tabla de permisos por rol y endpoint
 docs/ALERTAS.md          alertas AL01–AL16: evaluador, umbrales, rol, cuándo se evalúa, ciclo de vida
+docs/FRONTEND.md         estructura del frontend, tokens de diseño, convenciones, cómo agregar una pantalla
+docs/capturas/           capturas del tablero (las regenera npm run test:humo)
 docker-compose.yml       PostgreSQL 16
 .env.example             credenciales de ejemplo (copiar a .env, no se sube)
 package.json             scripts de la raíz
@@ -44,11 +46,16 @@ backend/
     alertas/evaluadores.ts  evaluadores puros AL01–AL16, catálogo de roles y acciones, validación de umbrales (+ tests)
     alertas/evaluacion.ts   evaluación contra la base y ciclo de vida (crear, color, resolver, escalar)
     alertas/             API de alertas, semáforo y umbrales; escucha inventario.cambio y alertas.evaluar
+    analisis/            GET /api/tablero/resumen, /costos, /fiestas/preparacion, /analisis/pareto-ajustes
     simulacion/integracion.controller.ts  eventos de integración simulados (AL16)
     inventario/operaciones/promociones.*  promociones propuestas (R02) y aprobadas (R07)
     generated/prisma/    cliente generado (no se sube)
-frontend/
-  src/                   App.tsx (pantalla de salud), main.tsx (router + React Query)
+frontend/                ver docs/FRONTEND.md
+  src/api/               cliente con X-Usuario, tipos, hooks de React Query
+  src/sesion/            usuario/almacén/tema y permisos del menú
+  src/componentes/       semáforo, KPI, reloj simulado, selectores, panel lateral
+  src/paginas/           tablero/ (pantalla central), Proximamente, SinAcceso
+  e2e/                   prueba de humo Playwright (Chromium local)
 ```
 
 ## Comandos principales (desde la raíz)
@@ -61,6 +68,7 @@ frontend/
 - `npm test` — tests unitarios + integración (Vitest, viene con NestJS 12; integración en la base `inventario_test`).
 - `npm run demo:api` — ensayo de la demo por HTTP (requiere `npm run backend:dev`).
 - `npm run demo:alertas` — ensayo de la demo de alertas (requiere `npm run backend:dev`).
+- `npm run test:humo` — Playwright: tablero en el navegador + capturas (levanta backend y frontend si hace falta).
 - Swagger: http://localhost:3000/api/docs
 - `npm run backend:dev` — backend en http://localhost:3000 (prefijo `/api`).
 - `npm run frontend:dev` — frontend en http://localhost:5173.
@@ -81,6 +89,7 @@ frontend/
 - DTOs en archivos `*.dto.ts` con class-validator y JSDoc `@example` (el plugin de Swagger los lee).
 - Cada operación nueva lleva su test de integración y debe dejar `GET /api/integridad` en OK.
 - Alertas: la lógica de umbrales va en `alertas/evaluadores.ts` (pura, con tests); los datos y el ciclo de vida, en `alertas/evaluacion.ts`. Una operación nueva que cambia stock solo necesita `await emitirCambio(...)`; algo que dependa del tiempo o sea global emite `EVENTO_EVALUAR`.
+- Frontend: sin cálculos de negocio (todo viene de la API); colores solo por tokens de `index.css`; semáforo siempre con ícono + texto; formato con `utils/formato.ts`; hooks en `api/consultas.ts` con el usuario en la queryKey. No descargar navegadores para Playwright: usar el Chromium de la caché.
 - Toda alerta usa la fecha simulada y umbrales de `ConfiguracionSistema.umbralesAlertas`; nunca la fecha real.
 - Todo lo que use "hoy" usa la fecha simulada (`SimulacionService`), nunca la fecha real.
 - Cambios de esquema: nueva migración en `backend/prisma/migrations` (no editar las aplicadas). Si cambian datos del escenario, actualizar docs/MODELO_DATOS.md y correr `npm run db:reset` + `npm run db:verificar`.
