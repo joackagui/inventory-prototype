@@ -57,6 +57,11 @@ enum EstadoTraslado {
   CON_DIFERENCIA
 }
 
+enum EstadoRecepcion {
+  CONFORME
+  DANADO
+}
+
 enum TipoConteo {
   CICLICO
   GENERAL
@@ -114,19 +119,19 @@ model Almacen {
   almacenTransito   Almacen?    @relation("TransitoDeAlmacen", fields: [almacenTransitoId], references: [id])
   almacenDestino    Almacen?    @relation("TransitoDeAlmacen")
 
-  ubicaciones       Ubicacion[]
-  parametros        ParametroArticuloAlmacen[]
-  capas             CapaFifo[]
-  movimientos       Movimiento[]
-  pedidos           PedidoSimulado[]
-  trasladosOrigen   OrdenTraslado[]            @relation("OrigenTraslado")
-  trasladosDestino  OrdenTraslado[]            @relation("DestinoTraslado")
-  conteos           ConteoFisico[]
-  ajustes           AjusteInventario[]
-  saldosEnvase      SaldoEnvase[]
-  promociones       Promocion[]
-  alertas           Alerta[]
-  usuarios          Usuario[]
+  ubicaciones      Ubicacion[]
+  parametros       ParametroArticuloAlmacen[]
+  capas            CapaFifo[]
+  movimientos      Movimiento[]
+  pedidos          PedidoSimulado[]
+  trasladosOrigen  OrdenTraslado[]            @relation("OrigenTraslado")
+  trasladosDestino OrdenTraslado[]            @relation("DestinoTraslado")
+  conteos          ConteoFisico[]
+  ajustes          AjusteInventario[]
+  saldosEnvase     SaldoEnvase[]
+  promociones      Promocion[]
+  alertas          Alerta[]
+  usuarios         Usuario[]
 }
 
 model Ubicacion {
@@ -157,16 +162,16 @@ model Articulo {
   costoFifoInicial Decimal @db.Decimal(12, 4)
   esRetornable     Boolean @default(false)
 
-  parametros       ParametroArticuloAlmacen[]
-  capas            CapaFifo[]
-  movimientos      Movimiento[]
-  lineasPedido     LineaPedido[]
-  lineasTraslado   LineaTraslado[]
-  conteos          ConteoFisico[]
-  ajustes          AjusteInventario[]
-  saldosEnvase     SaldoEnvase[]
-  promociones      Promocion[]
-  alertas          Alerta[]
+  parametros     ParametroArticuloAlmacen[]
+  capas          CapaFifo[]
+  movimientos    Movimiento[]
+  lineasPedido   LineaPedido[]
+  lineasTraslado LineaTraslado[]
+  conteos        ConteoFisico[]
+  ajustes        AjusteInventario[]
+  saldosEnvase   SaldoEnvase[]
+  promociones    Promocion[]
+  alertas        Alerta[]
 }
 
 // Entradas (d, σd, clase, Z) + valores calculados con src/inventario/calculos (SS, ROP, Q, Máx).
@@ -178,6 +183,7 @@ model ParametroArticuloAlmacen {
   almacen           Almacen   @relation(fields: [almacenId], references: [id])
   demandaDiaria     Int
   desviacionDemanda Float
+  leadTimeDias      Int
   claseAbc          ClaseAbc
   nivelServicio     Float
   z                 Float
@@ -207,14 +213,14 @@ model Usuario {
   almacenId Int?
   almacen   Almacen? @relation(fields: [almacenId], references: [id])
 
-  movimientos         Movimiento[]
-  pedidos             PedidoSimulado[]
-  traslados           OrdenTraslado[]
-  conteos             ConteoFisico[]
-  ajustesRegistrados  AjusteInventario[] @relation("AjusteRegistradoPor")
-  ajustesAprobados    AjusteInventario[] @relation("AjusteAprobadoPor")
-  alertasAtendidas    Alerta[]
-  registrosCambio     RegistroCambio[]
+  movimientos        Movimiento[]
+  pedidos            PedidoSimulado[]
+  traslados          OrdenTraslado[]
+  conteos            ConteoFisico[]
+  ajustesRegistrados AjusteInventario[] @relation("AjusteRegistradoPor")
+  ajustesAprobados   AjusteInventario[] @relation("AjusteAprobadoPor")
+  alertasAtendidas   Alerta[]
+  registrosCambio    RegistroCambio[]
 }
 
 model Cliente {
@@ -228,23 +234,28 @@ model Cliente {
 // ---------- Inventario ----------
 
 model CapaFifo {
-  id               Int        @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   articuloId       Int
-  articulo         Articulo   @relation(fields: [articuloId], references: [id])
+  articulo         Articulo       @relation(fields: [articuloId], references: [id])
   almacenId        Int
-  almacen          Almacen    @relation(fields: [almacenId], references: [id])
+  almacen          Almacen        @relation(fields: [almacenId], references: [id])
   ubicacionId      Int
-  ubicacion        Ubicacion  @relation(fields: [ubicacionId], references: [id])
+  ubicacion        Ubicacion      @relation(fields: [ubicacionId], references: [id])
   lote             String
-  fechaEntrada     DateTime   @db.Date
-  fechaElaboracion DateTime   @db.Date
-  fechaVencimiento DateTime   @db.Date
+  fechaEntrada     DateTime       @db.Date
+  fechaElaboracion DateTime       @db.Date
+  fechaVencimiento DateTime       @db.Date
   cantidadInicial  Int
   cantidadRestante Int
-  costoUnitario    Decimal    @db.Decimal(12, 4)
-  estado           EstadoCapa @default(DISPONIBLE)
+  costoUnitario    Decimal        @db.Decimal(12, 4)
+  estado           EstadoCapa     @default(DISPONIBLE)
+  // Solo en capas del almacén de tránsito: el traslado al que pertenecen.
+  ordenTrasladoId  Int?
+  ordenTraslado    OrdenTraslado? @relation(fields: [ordenTrasladoId], references: [id])
 
-  movimientos      Movimiento[]
+  movimientos Movimiento[]
+  promociones Promocion[]
+  ajustes     AjusteInventario[]
 
   // Orden FIFO: por fechaEntrada y luego id.
   @@index([articuloId, almacenId, estado, fechaEntrada])
@@ -287,6 +298,7 @@ model PedidoSimulado {
   almacen        Almacen       @relation(fields: [almacenId], references: [id])
   estado         EstadoPedido
   fechaOperacion DateTime      @db.Date
+  fechaDespacho  DateTime?     @db.Date
   creadoEn       DateTime      @default(now())
   usuarioId      Int
   usuario        Usuario       @relation(fields: [usuarioId], references: [id])
@@ -296,61 +308,69 @@ model PedidoSimulado {
 }
 
 model LineaPedido {
-  id         Int            @id @default(autoincrement())
-  pedidoId   Int
-  pedido     PedidoSimulado @relation(fields: [pedidoId], references: [id])
-  articuloId Int
-  articulo   Articulo       @relation(fields: [articuloId], references: [id])
-  cantidad   Int
+  id           Int            @id @default(autoincrement())
+  pedidoId     Int
+  pedido       PedidoSimulado @relation(fields: [pedidoId], references: [id])
+  articuloId   Int
+  articulo     Articulo       @relation(fields: [articuloId], references: [id])
+  cantidad     Int
+  // Bonificación en especie: sin cargo, ligada a una promoción BONIFICACION vigente.
+  bonificacion Boolean        @default(false)
+  promocionId  Int?
+  promocion    Promocion?     @relation(fields: [promocionId], references: [id])
 }
 
 model OrdenTraslado {
-  id             Int             @id @default(autoincrement())
-  numero         String          @unique
-  origenId       Int
-  origen         Almacen         @relation("OrigenTraslado", fields: [origenId], references: [id])
-  destinoId      Int
-  destino        Almacen         @relation("DestinoTraslado", fields: [destinoId], references: [id])
-  estado         EstadoTraslado
-  fechaEmision   DateTime        @db.Date
-  fechaDespacho  DateTime?       @db.Date
-  fechaRecepcion DateTime?       @db.Date
-  usuarioId      Int
-  usuario        Usuario         @relation(fields: [usuarioId], references: [id])
-  lineas         LineaTraslado[]
+  id              Int             @id @default(autoincrement())
+  numero          String          @unique
+  origenId        Int
+  origen          Almacen         @relation("OrigenTraslado", fields: [origenId], references: [id])
+  destinoId       Int
+  destino         Almacen         @relation("DestinoTraslado", fields: [destinoId], references: [id])
+  estado          EstadoTraslado
+  fechaEmision    DateTime        @db.Date
+  fechaDespacho   DateTime?       @db.Date
+  fechaRecepcion  DateTime?       @db.Date
+  usuarioId       Int
+  usuario         Usuario         @relation(fields: [usuarioId], references: [id])
+  lineas          LineaTraslado[]
+  capasEnTransito CapaFifo[]
 
   @@index([estado])
 }
 
 model LineaTraslado {
-  id                 Int           @id @default(autoincrement())
+  id                 Int              @id @default(autoincrement())
   ordenId            Int
-  orden              OrdenTraslado @relation(fields: [ordenId], references: [id])
+  orden              OrdenTraslado    @relation(fields: [ordenId], references: [id])
   articuloId         Int
-  articulo           Articulo      @relation(fields: [articuloId], references: [id])
+  articulo           Articulo         @relation(fields: [articuloId], references: [id])
   cantidadDespachada Int
   cantidadRecibida   Int?
+  estadoRecepcion    EstadoRecepcion?
   observacion        String?
 }
 
 model ConteoFisico {
-  id              Int                @id @default(autoincrement())
-  tipo            TipoConteo
-  articuloId      Int
-  articulo        Articulo           @relation(fields: [articuloId], references: [id])
-  almacenId       Int
-  almacen         Almacen            @relation(fields: [almacenId], references: [id])
-  ubicacionId     Int
-  ubicacion       Ubicacion          @relation(fields: [ubicacionId], references: [id])
-  cantidadSistema Int
-  cantidadContada Int
-  diferencia      Int
-  porcentaje      Float
-  usuarioId       Int
-  usuario         Usuario            @relation(fields: [usuarioId], references: [id])
-  fechaOperacion  DateTime           @db.Date
-  creadoEn        DateTime           @default(now())
-  ajustes         AjusteInventario[]
+  id               Int                @id @default(autoincrement())
+  tipo             TipoConteo
+  articuloId       Int
+  articulo         Articulo           @relation(fields: [articuloId], references: [id])
+  almacenId        Int
+  almacen          Almacen            @relation(fields: [almacenId], references: [id])
+  ubicacionId      Int
+  ubicacion        Ubicacion          @relation(fields: [ubicacionId], references: [id])
+  cantidadSistema  Int
+  cantidadContada  Int
+  diferencia       Int
+  porcentaje       Float
+  // Diferencia mayor que la tolerancia (ConfiguracionSistema.toleranciaConteoPct).
+  requiereRecuento Boolean            @default(false)
+  usuarioId        Int
+  usuario          Usuario            @relation(fields: [usuarioId], references: [id])
+  fechaOperacion   DateTime           @db.Date
+  creadoEn         DateTime           @default(now())
+  ajustes          AjusteInventario[]
 
   @@index([articuloId, almacenId, fechaOperacion])
 }
@@ -370,6 +390,9 @@ model AjusteInventario {
   estado          EstadoAjuste  @default(PENDIENTE)
   conteoId        Int?
   conteo          ConteoFisico? @relation(fields: [conteoId], references: [id])
+  // Capa afectada (opcional): si no se indica, una baja consume FIFO.
+  capaId          Int?
+  capa            CapaFifo?     @relation(fields: [capaId], references: [id])
   registradoPorId Int
   registradoPor   Usuario       @relation("AjusteRegistradoPor", fields: [registradoPorId], references: [id])
   fechaRegistro   DateTime      @db.Date
@@ -406,12 +429,16 @@ model Promocion {
   articulo     Articulo        @relation(fields: [articuloId], references: [id])
   almacenId    Int?
   almacen      Almacen?        @relation(fields: [almacenId], references: [id])
+  // Liquidación por vencimiento: aplica solo a esta capa.
+  capaId       Int?
+  capa         CapaFifo?       @relation(fields: [capaId], references: [id])
   fechaInicio  DateTime        @db.Date
   fechaFin     DateTime        @db.Date
   topeCajas    Int
   cajasUsadas  Int             @default(0)
   descuentoPct Float?
   estado       EstadoPromocion
+  lineasPedido LineaPedido[]
 }
 
 model Fiesta {
