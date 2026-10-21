@@ -9,8 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:humo": "playwright test --grep-invert @capturas",
-    "capturas": "playwright test --grep @capturas"
+    "test:humo": "playwright test --grep-invert \"@capturas|@recorrido\"",
+    "capturas": "mkdir -p ../docs/capturas/recorrido && CAPTURAS=1 playwright test --grep \"@capturas|@recorrido\"",
+    "test:recorrido": "playwright test --grep @recorrido"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

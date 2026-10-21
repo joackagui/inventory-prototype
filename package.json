@@ -18,6 +18,7 @@
     "test:humo": "npm --prefix frontend run test:humo",
     "capturas": "npm --prefix frontend run capturas",
     "demo:iniciar": "node scripts/demo.mjs iniciar",
-    "demo:detener": "node scripts/demo.mjs detener"
+    "demo:detener": "node scripts/demo.mjs detener",
+    "test:recorrido": "npm --prefix frontend run test:recorrido"
   }
 }
