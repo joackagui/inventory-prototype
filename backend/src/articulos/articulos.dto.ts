@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { TipoMovimiento } from '../generated/prisma/enums.js';
 
 export class AlmacenArticuloDto {
@@ -24,4 +24,13 @@ export class KardexDto {
   @IsOptional() @IsDateString({ strict: true }) hasta?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pagina = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(5000) tamano = 50;
+}
+
+export class FiltroCapasDto {
+  /** @example 'CD-LP-01' */
+  @IsOptional() @IsString() almacen?: string;
+  /** @example 'ART-10063' */
+  @IsOptional() @IsString() articulo?: string;
+  /** @example 'CUARENTENA' */
+  @IsOptional() @IsIn(['DISPONIBLE', 'CUARENTENA']) estado?: 'DISPONIBLE' | 'CUARENTENA';
 }

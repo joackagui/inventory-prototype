@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { LECTURA, OPERAN, Roles, UsuarioActual, type UsuarioSesion } from '../../usuarios/autorizacion.js';
 import { EnvasesService } from './envases.service.js';
@@ -28,5 +28,12 @@ export class EnvasesController {
   @Roles(...LECTURA)
   saldos(@Query() q: FiltroEnvasesDto) {
     return this.servicio.saldos(q);
+  }
+
+  /** Detalle de un saldo de envases con los demás saldos del cliente y sus movimientos. */
+  @Get('saldos/:id')
+  @Roles(...LECTURA)
+  detalle(@Param('id', ParseIntPipe) id: number) {
+    return this.servicio.detalle(id);
   }
 }

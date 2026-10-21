@@ -4,9 +4,11 @@ import { ErrorNegocio } from '../../comun/errores.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SimulacionService } from '../../simulacion/simulacion.service.js';
 import { exigirAlmacen, type UsuarioSesion } from '../../usuarios/autorizacion.js';
+import { al13, combinarUmbrales } from '../../alertas/evaluadores.js';
+import { vidaRestanteDias } from '../calculos/formulas.js';
 import { aFecha, almacenPlanta, articuloPorCodigo, bloquear, emitirCambio, masDias, registrar, ubicacion } from '../motor.js';
 import { TX } from './comun.js';
-import type { RecepcionDto } from './recepcion.dto.js';
+import type { PreviaRecepcionDto, RecepcionDto } from './recepcion.dto.js';
 
 @Injectable()
 export class RecepcionService {
@@ -15,6 +17,26 @@ export class RecepcionService {
     private readonly simulacion: SimulacionService,
     private readonly eventos: EventEmitter2,
   ) {}
+
+  // Antes de confirmar: vencimiento calculado y comparación del costo con la última capa (la misma regla de AL13).
+  async previa(dto: PreviaRecepcionDto) {
+    const fecha = await this.simulacion.fechaOperacion();
+    const almacen = await almacenPlanta(this.prisma, dto.almacen);
+    const articulo = await articuloPorCodigo(this.prisma, dto.articulo);
+    const vencimiento = dto.fechaElaboracion ? masDias(aFecha(dto.fechaElaboracion), articulo.vidaUtilDias) : null;
+    const anterior = await this.prisma.capaFifo.findFirst({ where: { articuloId: articulo.id, almacenId: almacen.id }, orderBy: [{ fechaEntrada: 'desc' }, { id: 'desc' }] });
+    const u = combinarUmbrales(await this.simulacion.valor('umbralesAlertas', null));
+    const costo = anterior && dto.costoUnitario ? al13({ costoNuevo: dto.costoUnitario, costoAnterior: Number(anterior.costoUnitario), lote: dto.lote ?? 'nuevo' }, u) : null;
+    return {
+      ubicacionSugerida: articulo.esRetornable ? 'PICK-A' : 'PICK-B',
+      vidaUtilDias: articulo.vidaUtilDias,
+      vencimiento: vencimiento?.toISOString().slice(0, 10) ?? null,
+      vidaRestanteDias: vencimiento ? vidaRestanteDias(vencimiento, fecha) : null,
+      capaAnterior: anterior ? { lote: anterior.lote, costoUnitario: Number(anterior.costoUnitario) } : null,
+      variacionPct: anterior && dto.costoUnitario ? Math.round((Math.abs(dto.costoUnitario - Number(anterior.costoUnitario)) / Number(anterior.costoUnitario)) * 10000) / 100 : null,
+      alertaCosto: costo ? { codigo: 'AL13', color: costo.color, mensaje: costo.mensaje } : null,
+    };
+  }
 
   // Entrada por producción de planta: crea una capa FIFO y su movimiento ENTRADA.
   async registrar(dto: RecepcionDto, u: UsuarioSesion) {

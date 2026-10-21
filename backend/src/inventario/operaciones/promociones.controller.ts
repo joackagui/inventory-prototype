@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { LECTURA, Roles, UsuarioActual, type UsuarioSesion } from '../../usuarios/autorizacion.js';
+import { Roles, TODOS, UsuarioActual, type UsuarioSesion } from '../../usuarios/autorizacion.js';
 import { AprobarPromocionDto, FiltroPromocionesDto, PromocionDto } from './promociones.dto.js';
 import { PromocionesService } from './promociones.service.js';
 
@@ -9,9 +9,9 @@ import { PromocionesService } from './promociones.service.js';
 export class PromocionesController {
   constructor(private readonly servicio: PromocionesService) {}
 
-  /** Promociones por estado. */
+  /** Promociones por estado, con uso del tope y cobertura. R01 las ve para ofrecer bonificaciones (no tienen costos). */
   @Get()
-  @Roles(...LECTURA)
+  @Roles(...TODOS)
   listar(@Query() q: FiltroPromocionesDto) {
     return this.servicio.listar(q.estado);
   }

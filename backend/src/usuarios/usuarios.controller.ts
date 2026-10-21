@@ -15,6 +15,13 @@ export class UsuariosController {
     return this.prisma.usuario.findMany({ include: { rol: true, almacen: { select: { id: true, codigo: true } } }, orderBy: { id: 'asc' } });
   }
 
+  /** Clientes genéricos (pedidos y envases). */
+  @Get('clientes')
+  @Roles(...TODOS)
+  clientes() {
+    return this.prisma.cliente.findMany({ orderBy: { codigo: 'asc' } });
+  }
+
   /** Usuario identificado por el encabezado X-Usuario. */
   @Get('yo')
   @Roles(...TODOS)

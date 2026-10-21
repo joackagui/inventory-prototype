@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LECTURA, Roles, TODOS, UsuarioActual, type UsuarioSesion } from '../usuarios/autorizacion.js';
-import { AlmacenArticuloDto, KardexDto, SerieDto } from './articulos.dto.js';
+import { AlmacenArticuloDto, FiltroCapasDto, KardexDto, SerieDto } from './articulos.dto.js';
 import { ArticulosService } from './articulos.service.js';
 
 @ApiTags('Artículos')
@@ -53,5 +53,18 @@ export class ArticulosController {
   @Get(':codigo/kardex')
   kardex(@Param('codigo') codigo: string, @Query() q: KardexDto) {
     return this.servicio.kardex(codigo, q);
+  }
+}
+
+@ApiTags('Artículos')
+@Roles(...LECTURA)
+@Controller('capas')
+export class CapasController {
+  constructor(private readonly servicio: ArticulosService) {}
+
+  /** Capas con saldo filtradas por almacén, artículo y estado (cuarentena, ajustes, aprobaciones). */
+  @Get()
+  listar(@Query() q: FiltroCapasDto) {
+    return this.servicio.capas(q.articulo, q);
   }
 }

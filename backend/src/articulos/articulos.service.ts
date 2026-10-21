@@ -158,23 +158,25 @@ export class ArticulosService {
   }
 
   // Capas con saldo en orden FIFO; marca las no despachables (cuarentena o < N días de vida) y la próxima en salir de cada almacén.
-  async capas(codigo: string) {
+  async capas(codigo?: string, filtro: { almacen?: string; estado?: 'DISPONIBLE' | 'CUARENTENA' } = {}) {
     const fecha = await this.simulacion.fechaOperacion();
     const diasMinimos = await this.simulacion.diasMinimosDespacho();
     const capas = await this.prisma.capaFifo.findMany({
-      where: { articulo: { codigo }, cantidadRestante: { gt: 0 } },
-      include: { almacen: { select: { codigo: true, tipo: true } }, ubicacion: { select: { codigo: true } } },
-      orderBy: [{ almacenId: 'asc' }, { fechaEntrada: 'asc' }, { id: 'asc' }],
+      where: { articulo: codigo ? { codigo } : undefined, almacen: filtro.almacen ? { codigo: filtro.almacen } : undefined, cantidadRestante: { gt: 0 } },
+      include: { almacen: { select: { codigo: true, tipo: true } }, ubicacion: { select: { codigo: true } }, articulo: { select: { codigo: true, descripcion: true } } },
+      orderBy: [{ almacenId: 'asc' }, { articuloId: 'asc' }, { fechaEntrada: 'asc' }, { id: 'asc' }],
     });
-    const proximas = new Set<number>();
-    return capas.map((c) => {
+    // La próxima en salir se marca por artículo y almacén; el filtro de estado se aplica después para no perderla.
+    const proximas = new Set<string>();
+    const todas = capas.map((c) => {
       const vida = vidaRestanteDias(c.fechaVencimiento, fecha);
       const despachable = c.estado === 'DISPONIBLE' && c.almacen.tipo === 'PLANTA' && vida >= diasMinimos;
-      const proximaEnSalir = despachable && !proximas.has(c.almacenId);
-      if (proximaEnSalir) proximas.add(c.almacenId);
+      const proximaEnSalir = despachable && !proximas.has(`${c.almacenId}:${c.articuloId}`);
+      if (proximaEnSalir) proximas.add(`${c.almacenId}:${c.articuloId}`);
       const motivoNoDespachable = despachable ? null : c.estado === 'CUARENTENA' ? 'En cuarentena' : c.almacen.tipo !== 'PLANTA' ? 'En tránsito' : `Menos de ${diasMinimos} días de vida`;
       return { ...c, costoUnitario: Number(c.costoUnitario), vidaRestanteDias: vida, valor: Math.round(c.cantidadRestante * Number(c.costoUnitario) * 100) / 100, despachable, proximaEnSalir, motivoNoDespachable };
     });
+    return filtro.estado ? todas.filter((c) => c.estado === filtro.estado) : todas;
   }
 
   // Kardex valorado: el saldo se acumula sobre toda la historia y luego se filtra y pagina (más reciente primero).

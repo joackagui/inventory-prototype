@@ -69,6 +69,20 @@ export class EnvasesService {
     return filas.map((f) => ({ ...f, pendiente: f.cantidadEntregada - f.cantidadDevuelta, antiguedadDias: Math.round((fecha.getTime() - f.fechaEntrega.getTime()) / MS_DIA) }));
   }
 
+  // Detalle de un saldo: sus datos, los demás saldos del cliente para el mismo envase y los movimientos de control.
+  async detalle(id: number) {
+    const s = await this.prisma.saldoEnvase.findUnique({ where: { id } });
+    if (!s) throw noEncontrado(`El saldo de envases ${id}`);
+    const del = await this.saldos({});
+    const saldo = del.find((x) => x.id === id)!;
+    const movimientos = await this.prisma.movimiento.findMany({
+      where: { tipo: { in: ['ENVASE_ENTREGA', 'ENVASE_DEVOLUCION'] }, articuloId: s.articuloId, almacenId: s.almacenId, motivo: { endsWith: saldo.cliente.codigo } },
+      include: { usuario: { select: { codigo: true } } },
+      orderBy: { id: 'asc' },
+    });
+    return { ...saldo, delCliente: del.filter((x) => x.clienteId === s.clienteId && x.articuloId === s.articuloId && x.almacenId === s.almacenId), movimientos };
+  }
+
   private async resolver(tx: Tx, dto: EnvaseDto) {
     const almacen = await almacenPlanta(tx, dto.almacen);
     const articulo = await articuloPorCodigo(tx, dto.articulo);

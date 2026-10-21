@@ -3,6 +3,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ErrorNegocio, noEncontrado } from '../../comun/errores.js';
 import type { EstadoPromocion, Promocion } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { SimulacionService } from '../../simulacion/simulacion.service.js';
+import { obtenerStock } from '../stock.js';
 import type { UsuarioSesion } from '../../usuarios/autorizacion.js';
 import { aFecha, almacenPlanta, articuloPorCodigo, emitirCambio, type Tx } from '../motor.js';
 import { TX } from './comun.js';
@@ -15,10 +17,29 @@ export class PromocionesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventos: EventEmitter2,
+    private readonly simulacion: SimulacionService,
   ) {}
 
-  listar(estado?: EstadoPromocion) {
-    return this.prisma.promocion.findMany({ where: { estado }, include: detalle, orderBy: { id: 'desc' } });
+  // Con uso del tope y cobertura (vendible ÷ d) del artículo en su almacén, o en los tres si no tiene almacén (AL15).
+  async listar(estado?: EstadoPromocion) {
+    const fecha = await this.simulacion.fechaOperacion();
+    const diasMinimos = await this.simulacion.diasMinimosDespacho();
+    const promos = await this.prisma.promocion.findMany({ where: { estado }, include: detalle, orderBy: { id: 'desc' } });
+    const plantas = await this.prisma.almacen.findMany({ where: { tipo: 'PLANTA' } });
+    const stock = new Map<number, Awaited<ReturnType<typeof obtenerStock>>>();
+    for (const p of plantas) stock.set(p.id, await obtenerStock(this.prisma, p.id, fecha, diasMinimos));
+    return promos.map((p) => {
+      const filas = (p.almacenId ? [p.almacenId] : plantas.map((x) => x.id)).map((id) => stock.get(id)!.find((s) => s.articuloId === p.articuloId)!);
+      const vendible = filas.reduce((t, s) => t + Math.max(0, s.vendible), 0);
+      const d = filas.reduce((t, s) => t + s.demandaDiaria, 0);
+      return {
+        ...p,
+        topeRestante: p.topeCajas - p.cajasUsadas,
+        vendible,
+        coberturaDias: d ? Math.round((vendible / d) * 10) / 10 : 0,
+        diasRestantes: Math.max(0, Math.round((p.fechaFin.getTime() - fecha.getTime()) / 86_400_000)),
+      };
+    });
   }
 
   // R02 propone: queda PROPUESTA hasta que R07 la apruebe.
