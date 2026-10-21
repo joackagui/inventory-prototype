@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AlertasModule } from './alertas/alertas.module.js';
 import { AlmacenesModule } from './almacenes/almacenes.module.js';
+import { AnalisisModule } from './analisis/analisis.module.js';
 import { ArticulosModule } from './articulos/articulos.module.js';
 import { InventarioModule } from './inventario/inventario.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -20,6 +21,7 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     SaludModule,
     InventarioModule,
     AlertasModule,
+    AnalisisModule,
     ArticulosModule,
     AlmacenesModule,
     UsuariosModule,
