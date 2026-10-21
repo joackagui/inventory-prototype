@@ -1,16 +1,16 @@
 // Seed determinista del escenario de demo al 30/06/2027 (sección 12 de docs/ESPECIFICACION.md).
 // Idempotente: vacía todas las tablas y vuelve a sembrar. Los valores elegidos para CB y SC están en docs/MODELO_DATOS.md.
+// Se ejecuta con `npm run db:seed`; los tests importan sembrar() para la base de pruebas.
 import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from 'dotenv';
+import { pathToFileURL } from 'node:url';
 import { PrismaClient, type TipoMovimiento } from '../src/generated/prisma/client.js';
 import { calcularParametros, clasificarAbc, type ClaseAbc } from '../src/inventario/calculos/formulas.js';
 import { obtenerStock } from '../src/inventario/stock.js';
 
-config({ path: '../.env', quiet: true });
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
-
 // ---------- Utilidades deterministas ----------
-let semilla = 20270630;
+const SEMILLA = 20270630;
+let semilla = SEMILLA;
 function aleatorio() {
   // mulberry32
   semilla = (semilla + 0x6d2b79f5) | 0;
@@ -58,7 +58,8 @@ const ARTICULOS = [
 
 // Escenario objetivo: disponible, reservado y vida restante (días) de la capa más antigua.
 // La Paz = tabla de la sección 12. CB y SC: elegidos para mezclar estados (ver docs/MODELO_DATOS.md).
-type Objetivo = { disponible: number; reservado?: number; vida?: number; esperado: string };
+// `capas` fija explícitamente las capas finales (de la más antigua a la más nueva).
+type Objetivo = { disponible: number; reservado?: number; vida?: number; capas?: { cantidad: number; vida: number }[]; esperado: string };
 const ESCENARIO: Record<string, Record<string, Objetivo>> = {
   LP: {
     'ART-10021': { disponible: 920, reservado: 160, vida: 137, esperado: 'Normal' },
@@ -66,7 +67,8 @@ const ESCENARIO: Record<string, Record<string, Objetivo>> = {
     'ART-10035': { disponible: 20, vida: 96, esperado: 'AL01 rojo' },
     'ART-10048': { disponible: 0, esperado: 'AL02 quiebre' },
     'ART-20011': { disponible: 700, reservado: 40, vida: 58, esperado: 'AL03 exceso (azul)' },
-    'ART-10063': { disponible: 150, vida: 12, esperado: 'AL04 rojo (vence en 12 días)' },
+    // 40 cajas a 12 días (no se despachan: < 15) y 110 a 25 días (en liquidación).
+    'ART-10063': { disponible: 150, capas: [{ cantidad: 40, vida: 12 }, { cantidad: 110, vida: 25 }], esperado: 'AL04 rojo (capa de 40 vence en 12 días)' },
     'ART-30005': { disponible: 210, vida: 301, esperado: 'AL05 amarillo (conteo hace 185 días)' },
   },
   CB: {
@@ -143,6 +145,7 @@ interface CapaSim {
   cantidadInicial: number;
   cantidadRestante: number;
   costo: number;
+  enTransito?: boolean;
 }
 interface MovSim {
   tipo: TipoMovimiento;
@@ -157,8 +160,8 @@ interface MovSim {
   motivo: string;
   documentoTipo?: string;
 }
-const capas: CapaSim[] = [];
-const movimientos: MovSim[] = [];
+let capas: CapaSim[] = [];
+let movimientos: MovSim[] = [];
 
 function consumirFifo(propias: CapaSim[], cantidad: number, alConsumir: (capa: CapaSim, n: number) => void) {
   for (const capa of propias) {
@@ -186,16 +189,23 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
   // Capas finales: la más antigua con la vida restante objetivo; las nuevas, +10 días de vida y +1% de costo cada una.
   const k = total === 0 ? 0 : clase === 'A' ? (total >= 300 ? 3 : 2) : total >= 300 ? 2 : 1;
   const vidaBase = obj.vida ?? Math.round(art.vida * 0.6);
-  const finales = Array.from({ length: k }, (_, i) => ({
-    t: N - 2 - 3 * (k - 1 - i),
-    restante: i === 0 ? total - (k - 1) * Math.floor(total / k) : Math.floor(total / k),
-    vencimiento: masDias(FECHA_OPERACION, vidaBase + 10 * i),
+  const definicion =
+    obj.capas ??
+    Array.from({ length: k }, (_, i) => ({
+      cantidad: i === 0 ? total - (k - 1) * Math.floor(total / k) : Math.floor(total / k),
+      vida: vidaBase + 10 * i,
+    }));
+  if (definicion.reduce((s, c) => s + c.cantidad, 0) !== total) throw new Error(`Capas definidas no suman el stock de ${art.codigo}`);
+  const finales = definicion.map((c, i) => ({
+    t: N - 2 - 3 * (definicion.length - 1 - i),
+    restante: c.cantidad,
+    vencimiento: masDias(FECHA_OPERACION, c.vida),
     costo: r2(art.costo * (1 + 0.01 * i)),
   }));
-  const t1 = k ? finales[0].t : N;
+  const t1 = finales.length ? finales[0].t : N;
   let salidaDesdeT1 = 0;
   for (let t = t1; t < N; t++) salidaDesdeT1 += salida(t);
-  const colchon = k ? Math.min(ss, salidaDesdeT1) : 0;
+  const colchon = finales.length ? Math.min(ss, salidaDesdeT1) : 0;
 
   // Entradas periódicas previas: cada una cubre exactamente las salidas hasta la siguiente (la primera trae además el colchón).
   const periodo = clase === 'C' ? 10 : 5;
@@ -264,7 +274,10 @@ function simular(alm: (typeof ALMACENES)[number], art: (typeof ARTICULOS)[number
   return { saldoDiario, piezasTraslado };
 }
 
-async function main() {
+export async function sembrar(prisma: PrismaClient, { silencioso = false } = {}) {
+  semilla = SEMILLA;
+  capas = [];
+  movimientos = [];
   // Vaciar todo (TRUNCATE no dispara el trigger de inmutabilidad, que es por fila).
   const tablas = await prisma.$queryRaw<{ tablename: string }[]>`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   await prisma.$executeRawUnsafe(`TRUNCATE ${tablas.map((t) => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`);
@@ -326,6 +339,7 @@ async function main() {
           almacenId: almacenId[alm.codigo],
           demandaDiaria: d,
           desviacionDemanda: sigma,
+          leadTimeDias: alm.leadTime,
           claseAbc: clase,
           ...p,
           ultimoConteo: F(ULTIMO_CONTEO_ESPECIAL[clave] ?? ULTIMO_CONTEO[clase]),
@@ -341,7 +355,7 @@ async function main() {
   const destino = ALMACENES.find((a) => a.corto === TRASLADO.destino)!;
   const origen = ALMACENES.find((a) => a.corto === TRASLADO.origen)!;
   for (const { capa, n } of piezasTraslado) {
-    const enRuta: CapaSim = { ...capa, almacen: `TR-${destino.corto}`, ubicacion: 'EN-RUTA', fechaEntrada: F(TRASLADO.despacho), cantidadInicial: n, cantidadRestante: n, id: undefined };
+    const enRuta: CapaSim = { ...capa, almacen: `TR-${destino.corto}`, ubicacion: 'EN-RUTA', fechaEntrada: F(TRASLADO.despacho), cantidadInicial: n, cantidadRestante: n, id: undefined, enTransito: true };
     capas.push(enRuta);
     movimientos.push({ tipo: 'TRASLADO_ENTRADA', articulo: capa.articulo, almacen: enRuta.almacen, ubicacion: 'EN-RUTA', capa: enRuta, cantidad: n, costo: capa.costo, fecha: F(TRASLADO.despacho), usuario: `ALM-${origen.corto}`, motivo: 'Traslado entre plantas', documentoTipo: 'OrdenTraslado' });
   }
@@ -372,6 +386,7 @@ async function main() {
         cantidadRestante: c.cantidadRestante,
         costoUnitario: c.costo,
         estado: c.cantidadRestante > 0 ? 'DISPONIBLE' : 'AGOTADA',
+        ordenTrasladoId: c.enTransito ? orden.id : null,
       },
     });
     c.id = creada.id;
@@ -493,15 +508,18 @@ async function main() {
     });
   }
 
+  // La liquidación aplica solo a la capa de 25 días (15 a 30 días de vida); la de 12 días ya no se despacha.
+  const capaLiquidacion = capas.find((c) => c.almacen === 'CD-LP-01' && c.articulo === 'ART-10063' && c.cantidadRestante === 110)!;
   await prisma.promocion.create({
     data: {
       nombre: 'Liquidación Bock por vencimiento',
       tipo: 'LIQUIDACION_VENCIMIENTO',
       articuloId: articuloId['ART-10063'],
       almacenId: almacenId['CD-LP-01'],
+      capaId: capaLiquidacion.id,
       fechaInicio: FECHA_OPERACION,
       fechaFin: F('2027-07-12'),
-      topeCajas: 150,
+      topeCajas: 110,
       descuentoPct: 30,
       estado: 'ACTIVA',
     },
@@ -540,6 +558,7 @@ async function main() {
     ],
   });
 
+  if (silencioso) return;
   // Tabla de verificación de La Paz, calculada con la misma función que usa GET /api/stock.
   const stockLp = await obtenerStock(prisma, almacenId['CD-LP-01'], FECHA_OPERACION);
   console.log(`\nSeed listo: ${capas.length} capas, ${movimientos.length} movimientos, ${N} días hábiles (${DIAS[0].toISOString().slice(0, 10)} → ${DIAS[N - 1].toISOString().slice(0, 10)}).`);
@@ -560,9 +579,13 @@ async function main() {
   );
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  config({ path: '../.env', quiet: true });
+  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+  sembrar(prisma)
+    .catch((e) => {
+      console.error(e);
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}
