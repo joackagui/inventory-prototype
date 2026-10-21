@@ -88,3 +88,28 @@ test('capturas de Operaciones y Aprobaciones @capturas', async ({ browser }) => 
     await contexto.close()
   }
 })
+
+test('capturas de Análisis, Fiestas, Costos y Administración @capturas', async ({ browser }) => {
+  for (const tema of TEMAS) {
+    const contexto = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const p = await contexto.newPage()
+    await abrir(p, '/analisis', 'LOG-01', tema)
+    await expect(p.getByTestId('grafico-pareto')).toBeVisible()
+    await pausa(p)
+    await p.screenshot({ path: `${CAPTURAS}/analisis-pareto-1920x1080-${tema}.png` })
+    await p.goto('/fiestas')
+    await p.locator('[data-fiesta^="Aniversario de La Paz"]').click()
+    await expect(p.getByTestId('cronograma')).toBeVisible()
+    await pausa(p)
+    await p.screenshot({ path: `${CAPTURAS}/fiestas-1920x1080-${tema}.png` })
+    await p.goto('/costos')
+    await expect(p.getByTestId('grafico-costos')).toBeVisible()
+    await pausa(p)
+    await p.screenshot({ path: `${CAPTURAS}/costos-1920x1080-${tema}.png` })
+    await p.goto('/administracion')
+    await expect(p.getByTestId('escenarios')).toBeVisible()
+    await pausa(p)
+    await p.screenshot({ path: `${CAPTURAS}/administracion-1920x1080-${tema}.png` })
+    await contexto.close()
+  }
+})
