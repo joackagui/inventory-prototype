@@ -42,15 +42,15 @@ erDiagram
 | **Almacen** | Plantas/CD (`PLANTA`) y almacenes de tránsito (`TRANSITO`). Cada planta apunta a su tránsito con `almacenTransitoId`. Guarda el lead time L. |
 | **Ubicacion** | PICK-A, PICK-B, ENV-RET, MUELLE-01 y CUAR-01 por planta; EN-RUTA en los tránsitos. `vendible = false` en CUAR-01, ENV-RET y EN-RUTA. |
 | **Articulo** | Maestro MD2: precio, vida útil, costo FIFO inicial, si es retornable. |
-| **ParametroArticuloAlmacen** | Por artículo y almacén: entradas (d, σd, clase, nivel de servicio, Z, días de revisión) y valores calculados (SS, ROP, Q, Máx) más el último conteo. Los calculados salen siempre de `calcularParametros()`. |
-| **CapaFifo** | Una capa por cada entrada: lote, fechas, cantidad inicial/restante, costo y estado (DISPONIBLE, CUARENTENA, AGOTADA). El orden FIFO es `fechaEntrada`, luego `id`. |
-| **Movimiento** | Libro mayor **inmutable**: un trigger de PostgreSQL rechaza UPDATE y DELETE. La cantidad lleva signo. Solo ENTRADA, SALIDA, TRASLADO_*, AJUSTE, MERMA y BONIFICACION cambian el stock físico (`TIPOS_FISICOS`). RESERVA, CONTEO, CUARENTENA y ENVASE_* son registros de control. |
-| **PedidoSimulado / LineaPedido** | Pedido de demo. Si está `CONFIRMADO`, sus líneas son el **reservado** del almacén. |
-| **OrdenTraslado / LineaTraslado** | Traslado origen → tránsito → destino, con cantidades despachadas y recibidas. |
-| **ConteoFisico** | Conteo cíclico o general: sistema vs. contado, diferencia y %. |
-| **AjusteInventario** | Ajuste o merma con motivo. R06 lo registra y R07 lo aprueba (PENDIENTE → APROBADO/RECHAZADO). Solo al aprobarse genera movimientos. |
+| **ParametroArticuloAlmacen** | Por artículo y almacén: entradas (d, σd, L, clase, nivel de servicio, Z, días de revisión) y valores calculados (SS, ROP, Q, Máx) más el último conteo. Los calculados salen siempre de `calcularParametros()`. |
+| **CapaFifo** | Una capa por cada entrada: lote, fechas, cantidad inicial/restante, costo y estado (DISPONIBLE, CUARENTENA, AGOTADA). El orden FIFO es `fechaEntrada`, luego `id`. Las capas en tránsito llevan `ordenTrasladoId`. Un lote tiene un solo costo y vencimiento (lo comprueba la integridad). |
+| **Movimiento** | Libro mayor **inmutable**: un trigger de PostgreSQL rechaza UPDATE y DELETE. La cantidad lleva signo. Los tipos con cantidades físicas (`TIPOS_FISICOS`) son ENTRADA, SALIDA, TRASLADO_*, AJUSTE, MERMA, BONIFICACION y CUARENTENA. CUARENTENA mueve stock entre ubicaciones con dos patas (−n y +n) que suman 0 en el almacén. RESERVA, LIBERACION_RESERVA, CONTEO y ENVASE_* son registros de control. |
+| **PedidoSimulado / LineaPedido** | Pedido de demo. Si está `CONFIRMADO`, sus líneas son el **reservado** del almacén. Una línea puede ser `bonificacion` (sin cargo), ligada a una promoción BONIFICACION. Sin stock, el pedido queda `PENDIENTE_REVISION` sin reservas. |
+| **OrdenTraslado / LineaTraslado** | Traslado origen → tránsito → destino, con cantidades despachadas y recibidas y el estado de recepción (CONFORME o DANADO). |
+| **ConteoFisico** | Conteo cíclico o general por ubicación: sistema vs. contado, diferencia, % y `requiereRecuento` (si supera la tolerancia). |
+| **AjusteInventario** | Ajuste o merma con motivo y capa opcional. R06 lo registra y R07 lo aprueba (PENDIENTE → APROBADO/RECHAZADO), nunca la misma persona. Solo al aprobarse genera movimientos. |
 | **Cliente / SaldoEnvase** | Clientes genéricos y envases retornables entregados/devueltos (por cantidad, sin FIFO). |
-| **Promocion** | Promociones con tipo, vigencia, tope y cajas usadas. |
+| **Promocion** | Promociones con tipo, vigencia, tope, cajas usadas y capa opcional (la liquidación aplica a una capa). |
 | **Fiesta** | Calendario de fiestas: rango, `diasFiesta` reales, zonas (códigos de almacén), factor f y semanas de preparación. |
 | **Alerta** | AL01–AL16 con color, estado y quién/cuándo/cómo se atendió (sin lógica todavía). |
 | **Rol / Usuario** | Roles R01…R09 y usuarios genéricos; R06 lleva su almacén asignado. |
@@ -67,12 +67,27 @@ Por artículo y almacén (ver `backend/src/inventario/stock.ts`):
 - **cuarentena** = Σ de las capas en CUARENTENA
 - **en tránsito** = Σ de las capas que están en el almacén de tránsito asociado (TR-xx)
 - **posición** = disponible + en tránsito
+- **vendible** = capas DISPONIBLE con vida restante de al menos 15 días (`diasMinimosVidaDespacho`) − reservado. Es lo que se puede reservar y despachar.
 
 Invariantes, comprobados por `npm run db:verificar`:
 - Σ capas = Σ movimientos físicos = disponible + reservado + cuarentena.
 - Para cada capa, Σ de sus movimientos = cantidad restante.
 - Ninguna capa tiene cantidad restante negativa.
 - Toda capa vence después de su fecha de elaboración.
+- Un mismo lote tiene el mismo costo y vencimiento en todas sus capas.
+
+## Motor de inventario
+
+Ver `backend/src/inventario/motor.ts` y `docs/PERMISOS.md`.
+- **Transacciones con candado:** cada operación corre en una transacción y primero bloquea (`SELECT … FOR UPDATE`) la fila de `ParametroArticuloAlmacen` de cada artículo y almacén que toca, en orden de id. Así dos peticiones simultáneas no reservan ni despachan el mismo stock. El tránsito hacia un almacén se protege con el candado del almacén destino.
+- **Despacho FIFO:** consume la capa más antigua primero y salta las que están en cuarentena o tienen menos de 15 días de vida. Valora cada pieza con el costo de su capa; un despacho puede generar varios movimientos.
+- **Traslado:** al despachar, las capas del origen pasan al tránsito del destino conservando lote, costo y vencimiento. Al recibir, la diferencia se registra primero como MERMA en el tránsito y luego lo recibido entra al destino (si llegó dañado, a CUAR-01).
+- **Ajustes:**
+  - una baja consume la capa indicada o, si no se indica, FIFO;
+  - un alta crea una capa con el costo, lote y vencimiento de la última capa;
+  - no se aprueba una baja que deje menos stock que lo reservado.
+- **Cuarentena:** si es parcial, divide la capa (mismo lote, costo, vencimiento y fecha de entrada). Se libera hacia el picking, o se da de baja con un ajuste que lleve el `capaId` de la capa.
+- **Eventos:** al confirmar cada operación se emite `inventario.cambio` con `{ articuloId, almacenId, operacion }` (EventEmitter de NestJS). Es el punto de enganche de las alertas.
 
 ## Decisiones
 

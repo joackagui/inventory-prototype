@@ -54,7 +54,8 @@ Abre <http://localhost:5173>: debe decir **Backend 🟢 ok** y **Base de datos �
 | `npm run db:seed`      | Vacía las tablas y carga el escenario de demo    |
 | `npm run db:reset`     | Borra la base, migra, siembra y verifica         |
 | `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
-| `npm test`             | Tests de las fórmulas de inventario              |
+| `npm test`             | Tests unitarios y de integración (base `inventario_test`) |
+| `npm run demo:api`     | Ensayo de la demo por HTTP (con el backend en marcha) |
 | `npm run backend:dev`  | Backend NestJS con recarga automática            |
 | `npm run frontend:dev` | Frontend Vite con recarga automática             |
 
@@ -71,11 +72,34 @@ npm run db:reset    # completo: borra la base, aplica migraciones, siembra y ver
 
 El seed es determinista: siempre produce exactamente los mismos datos. El escenario está documentado en [docs/MODELO_DATOS.md](docs/MODELO_DATOS.md).
 
-## API de solo lectura
+## API
 
-`GET /api/almacenes` · `/api/articulos` · `/api/stock?almacenId=CD-LP-01` · `/api/articulos/ART-10021/capas` · `/api/articulos/ART-10021/kardex?almacenId=CD-LP-01` · `/api/abc` · `/api/fiestas` · `/api/salud`
+La documentación interactiva (Swagger, con ejemplos) está en <http://localhost:3000/api/docs>.
 
-`almacenId` acepta el id numérico o el código del almacén.
+Cada petición lleva el encabezado `X-Usuario` con el código del usuario. En Swagger se pone con el botón **Authorize**. Por ejemplo:
+
+```bash
+curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/stock?almacenId=CD-LP-01'
+curl -X POST -H 'X-Usuario: PV-014' -H 'Content-Type: application/json' \
+  -d '{"cliente":"Cliente 001","almacen":"CD-LP-01","lineas":[{"articulo":"ART-10021","cantidad":100}]}' \
+  http://localhost:3000/api/pedidos
+```
+
+Qué puede hacer cada rol: [docs/PERMISOS.md](docs/PERMISOS.md). Los errores siempre tienen la forma `{ codigo, mensaje, detalles }`.
+
+## Ensayar la demo
+
+Con el backend en marcha (`npm run backend:dev`), en otra terminal:
+
+```bash
+npm run demo:api
+```
+
+Vuelve a sembrar el escenario y recorre por la API pedido → despacho → traslado → recepción con diferencia → conteo → ajuste → aprobación → cuarentena. Muestra el resultado de cada paso y las alertas que deberían aparecer. Con `npm run demo:api -- --sin-sembrar` no vuelve a sembrar.
+
+## Tests
+
+`npm test` corre los tests unitarios de las fórmulas y los de integración. Los de integración usan una segunda base, `inventario_test`, en el mismo contenedor de PostgreSQL. Se crea y migra sola, y se vuelve a sembrar antes de cada archivo. No toca los datos de la demo.
 
 ## Problemas comunes
 

@@ -20,22 +20,26 @@ Todo en español; frontend pensado para proyectarse en vivo.
 ## Estructura
 ```
 docs/ESPECIFICACION.md   fuente de verdad del proyecto
-docs/MODELO_DATOS.md     modelo de datos, decisiones y escenario del seed
+docs/MODELO_DATOS.md     modelo de datos, motor de inventario, decisiones y escenario del seed
+docs/PERMISOS.md         tabla de permisos por rol y endpoint
 docker-compose.yml       PostgreSQL 16
 .env.example             credenciales de ejemplo (copiar a .env, no se sube)
 package.json             scripts de la raíz
 backend/
-  prisma/                schema.prisma, migraciones, seed.ts, verificar-integridad.ts (prisma.config.ts lee ../.env)
+  prisma/                schema.prisma, migraciones, seed.ts (exporta sembrar()), verificar-integridad.ts
+  scripts/demo-api.ts    ensayo de la demo por HTTP
+  test/                  tests de integración (*.e2e-spec.ts) sobre la base inventario_test
   src/
-    prisma/              PrismaService global
-    salud/               GET /api/salud
-    inventario/calculos/ fórmulas puras (SS, ROP, Q, Máx, ABC, fiestas, costos) + tests
-    inventario/stock.ts  cálculo de estados del stock (lo usan la API, el seed y la verificación)
-    inventario/          GET /api/stock, /api/abc, /api/fiestas
-    articulos/           GET /api/articulos, /:codigo/capas, /:codigo/kardex
-    almacenes/           GET /api/almacenes
-    simulacion/          fecha simulada (ConfiguracionSistema)
-    alertas/ usuarios/   módulos aún vacíos
+    comun/errores.ts     ErrorNegocio y filtro de errores { codigo, mensaje, detalles }
+    usuarios/            guard X-Usuario, @Roles, exigirAlmacen; GET /api/usuarios, /api/yo
+    simulacion/          fecha simulada y configuración (con bitácora)
+    inventario/calculos/ fórmulas puras (SS, ROP, Q, Máx, Z, ABC, fiestas, costos) + tests
+    inventario/motor.ts  candados, saldo, consumo FIFO, registro de movimientos, evento inventario.cambio
+    inventario/stock.ts  estados del stock (API, seed, integridad)
+    inventario/integridad.ts  verificación reutilizable (script, GET /api/integridad, tests)
+    inventario/operaciones/   recepción, pedidos, traslados, conteos, ajustes, cuarentena, envases, parámetros
+    articulos/ almacenes/ salud/   consultas
+    alertas/             vacío: se engancha al evento inventario.cambio
     generated/prisma/    cliente generado (no se sube)
 frontend/
   src/                   App.tsx (pantalla de salud), main.tsx (router + React Query)
@@ -48,7 +52,9 @@ frontend/
 - `npm run db:seed` — vaciar y sembrar el escenario del 30/06/2027 (determinista).
 - `npm run db:reset` — borrar la base, migrar, sembrar y verificar integridad.
 - `npm run db:verificar` — comprobar integridad de capas y movimientos.
-- `npm test` — tests unitarios de las fórmulas (Vitest, viene con NestJS 12).
+- `npm test` — tests unitarios + integración (Vitest, viene con NestJS 12; integración en la base `inventario_test`).
+- `npm run demo:api` — ensayo de la demo por HTTP (requiere `npm run backend:dev`).
+- Swagger: http://localhost:3000/api/docs
 - `npm run backend:dev` — backend en http://localhost:3000 (prefijo `/api`).
 - `npm run frontend:dev` — frontend en http://localhost:5173.
 - `npm --prefix frontend run build` / `npm --prefix backend run build` — compilar.
@@ -61,7 +67,12 @@ frontend/
 - Todos los cálculos (SS, ROP, Q, Máx, FIFO, ABC, alertas, costos) se hacen en el backend; el frontend solo muestra.
 - Los movimientos de inventario nunca se borran ni se editan (las correcciones son movimientos nuevos o ajustes). Un trigger en PostgreSQL lo impone; el seed usa TRUNCATE.
 - SS, ROP, Q y Máx se obtienen siempre con `calcularParametros()` de `src/inventario/calculos/formulas.ts`; redondeo de SS con Math.round. No duplicar fórmulas en otro lugar.
-- El stock físico se mueve solo con los tipos de `TIPOS_FISICOS`; RESERVA, CONTEO, CUARENTENA y ENVASE_* son de control.
+- El stock físico se mueve solo con los tipos de `TIPOS_FISICOS` (incluye CUARENTENA, con dos patas que suman 0); RESERVA, LIBERACION_RESERVA, CONTEO y ENVASE_* son de control.
+- Toda operación que cambia stock: transacción `prisma.$transaction(..., TX)` + `bloquear()` de los pares artículo/almacén antes de leer saldos; consultas secuenciales dentro de la transacción (sin Promise.all); `emitirCambio()` después de confirmar.
+- Permisos: cada ruta lleva `@Roles(...)`; las operaciones de almacén llaman `exigirAlmacen()`. Actualizar docs/PERMISOS.md al agregar rutas.
+- Errores con `ErrorNegocio(status, CODIGO, 'mensaje en español', detalles)`.
+- DTOs en archivos `*.dto.ts` con class-validator y JSDoc `@example` (el plugin de Swagger los lee).
+- Cada operación nueva lleva su test de integración y debe dejar `GET /api/integridad` en OK.
 - Todo lo que use "hoy" usa la fecha simulada (`SimulacionService`), nunca la fecha real.
 - Cambios de esquema: nueva migración en `backend/prisma/migrations` (no editar las aplicadas). Si cambian datos del escenario, actualizar docs/MODELO_DATOS.md y correr `npm run db:reset` + `npm run db:verificar`.
 - Prisma bloquea `migrate reset` ejecutado por un agente: pedir permiso explícito al usuario antes de correrlo.
