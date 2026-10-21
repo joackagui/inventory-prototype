@@ -24,7 +24,10 @@ docs/MODELO_DATOS.md     modelo de datos, motor de inventario, decisiones y esce
 docs/PERMISOS.md         tabla de permisos por rol y endpoint
 docs/ALERTAS.md          alertas AL01–AL16: evaluador, umbrales, rol, cuándo se evalúa, ciclo de vida
 docs/FRONTEND.md         estructura del frontend, tokens de diseño, convenciones, cómo agregar una pantalla
-docs/capturas/           capturas versionadas (solo las regenera `npm run capturas`)
+docs/GUION_DEMO.md       guion de la demo (10 escenas, plan B, preguntas probables)
+docs/TRAZABILIDAD.md     RF, RNF, AL, P y RI → pantalla/endpoint, prueba y estado
+docs/capturas/           capturas versionadas (solo las regenera `npm run capturas`; recorrido/ una por escena)
+scripts/demo.mjs         npm run demo:iniciar / demo:detener (procesos y logs en .demo/, ignorada)
 docker-compose.yml       PostgreSQL 16
 .env.example             credenciales de ejemplo (copiar a .env, no se sube)
 package.json             scripts de la raíz
@@ -58,10 +61,13 @@ frontend/                ver docs/FRONTEND.md
   src/sesion/            usuario/almacén/tema y permisos del menú
   src/componentes/       semáforo, KPI, reloj simulado, selectores, panel lateral
   src/paginas/           tablero/, alertas/, articulos/, operaciones/, aprobaciones/, analisis/, fiestas/, costos/, administracion/, SinAcceso
-  e2e/                   prueba de humo Playwright (Chromium local)
+  e2e/                   Playwright (Chromium local): humo, accesibilidad (axe), recorrido del guion y capturas
 ```
 
 ## Comandos principales (desde la raíz)
+- `npm run demo:iniciar` / `npm run demo:detener` — demo completa en segundo plano (Docker, migrate deploy, seed, builds, vite preview).
+- `npm run verificar` — lint + todos los tests + builds + humo + recorrido (debe pasar antes de hacer merge).
+- `npm run test:recorrido` — las 10 escenas de docs/GUION_DEMO.md con números exactos.
 - `npm run db:up` / `npm run db:down` — iniciar / detener PostgreSQL.
 - `npm run install:all` — instalar dependencias de backend y frontend.
 - `npm run db:migrate` — aplicar migraciones de Prisma.
@@ -97,6 +103,10 @@ frontend/                ver docs/FRONTEND.md
 - Alertas: la lógica de umbrales va en `alertas/evaluadores.ts` (pura, con tests); los datos y el ciclo de vida, en `alertas/evaluacion.ts`. Una operación nueva que cambia stock solo necesita `await emitirCambio(...)`; algo que dependa del tiempo o sea global emite `EVENTO_EVALUAR`.
 - Frontend: sin cálculos de negocio (todo viene de la API); colores solo por tokens de `index.css`; semáforo siempre con ícono + texto; formato con `utils/formato.ts`; hooks en `api/consultas.ts` con el usuario en la queryKey; almacenes con `useAlmacenes()` (nunca códigos fijos); la ficha muestra fórmulas con los números del backend, no las recalcula. No descargar navegadores para Playwright: usar el Chromium de la caché.
 - Toda alerta usa la fecha simulada y umbrales de `ConfiguracionSistema.umbralesAlertas`; nunca la fecha real.
+- Días de despacho: lunes a sábado sin feriados, solo con `esDiaDespacho()` de `src/comun/calendario.ts` (seed, ventas del tablero, rotación).
+- Si cambian números del escenario, actualizar docs/GUION_DEMO.md y `e2e/recorrido.spec.ts`.
+- Frontend: texto sobre fondo de color sólido con `text-sobre-color` (no `text-white`); cada pantalla con `lazy()` en App.tsx; elementos prescindibles en el proyector con la clase `secundario`; una pantalla nueva entra en `e2e/accesibilidad.spec.ts`.
+- Lint con oxlint (reglas compatibles con ESLint); Prettier configurado (`npm --prefix <paquete> run format`) para el código nuevo, sin reformatear lo existente.
 - Todo lo que use "hoy" usa la fecha simulada (`SimulacionService`), nunca la fecha real.
 - Cambios de esquema: nueva migración en `backend/prisma/migrations` (no editar las aplicadas). Si cambian datos del escenario, actualizar docs/MODELO_DATOS.md y correr `npm run db:reset` + `npm run db:verificar`.
 - Prisma bloquea `migrate reset` ejecutado por un agente: pedir permiso explícito al usuario antes de correrlo.

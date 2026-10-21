@@ -1,153 +1,151 @@
 # Inventario CBN — Prototipo
 
-Prototipo del sistema de inventarios del ERP de CBN (FIFO, sistema perpetuo, 3 almacenes). La especificación completa está en [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md).
+Prototipo funcional del sistema de inventarios del ERP de CBN (canal de preventa): tres almacenes (La Paz, Cochabamba y Santa Cruz), inventario perpetuo valorado con FIFO por capas, reposición por traslado entre plantas y 16 alertas tipo semáforo. Todo se guarda en PostgreSQL y se calcula en el backend; los datos de muestra corresponden al **30/06/2027**.
+
+- Especificación: [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md)
+- Guion de la demo: [docs/GUION_DEMO.md](docs/GUION_DEMO.md)
+- Trazabilidad de requisitos: [docs/TRAZABILIDAD.md](docs/TRAZABILIDAD.md)
 
 ## Requisitos
 
-- **Node.js 22 o superior** (probado con Node 26) y npm — `node -v` para comprobarlo.
-- **Docker Desktop** (versión para Apple Silicon si tienes Mac M1–M5) abierto y corriendo.
-- Git.
+| Programa | Para qué | Cómo comprobarlo |
+|----------|----------|------------------|
+| **Node.js 22 o superior** (con npm) | backend, frontend y scripts | `node -v` en la Terminal |
+| **Docker Desktop** (Apple Silicon si tu Mac es M1 o posterior) | base de datos PostgreSQL 16 | abre la app; la ballena aparece en la barra de menú |
+| **Git** | descargar el proyecto | `git --version` |
 
-## Levantar todo desde cero
+## Iniciar la demo (un solo comando)
 
-Todos los comandos se ejecutan desde la carpeta raíz del proyecto.
+1. Abre **Docker Desktop** y espera a que la ballena deje de moverse.
+2. Abre la **Terminal** (Cmd + Espacio, escribe «Terminal») y entra en la carpeta del proyecto:
+   ```bash
+   cd "ruta/a/Inventory System"
+   ```
+3. Ejecuta:
+   ```bash
+   npm run demo:iniciar
+   ```
+   La primera vez tarda 1 o 2 minutos. El comando:
+   - crea `.env`;
+   - instala las dependencias si faltan;
+   - levanta PostgreSQL y aplica las migraciones;
+   - siembra el escenario del 30/06/2027;
+   - compila;
+   - arranca el backend y el frontend en segundo plano;
+   - abre <http://localhost:5173>.
 
-```bash
-# 1. Variables de entorno (usuario, clave y base de PostgreSQL)
-cp .env.example .env
+   Termina con «✅ Demo lista» e «Integridad OK».
+4. Para apagar todo (backend, frontend y PostgreSQL; los datos se conservan):
+   ```bash
+   npm run demo:detener
+   ```
 
-# 2. Base de datos PostgreSQL 16 en Docker (queda corriendo en segundo plano)
-npm run db:up
+Los registros de los procesos quedan en `.demo/backend.log` y `.demo/frontend.log`.
 
-# 3. Instalar dependencias del backend y del frontend
-npm run install:all
+## Usuarios
 
-# 4. Crear las tablas y cargar el escenario de demo (30/06/2027)
-npm run db:migrate
-npm run db:seed
+No hay contraseñas: el usuario se elige en la esquina superior derecha. El backend valida igual los permisos de cada rol ([docs/PERMISOS.md](docs/PERMISOS.md)).
 
-# 5. Iniciar el backend (déjalo abierto en una terminal)
-npm run backend:dev
+| Usuario | Rol | Qué hace en la demo |
+|---------|-----|---------------------|
+| `PV-014` | R01 Preventista | Ve disponible o agotado y crea pedidos; no ve costos ni alertas |
+| `SUP-01` | R02 Supervisor de ventas | Propone promociones; ve análisis y fiestas |
+| `AST-01` | R03 Asistente de pedidos | Consulta stock y pedidos |
+| `ALM-LP` · `ALM-CB` · `ALM-SC` | R06 Almacén | Opera solo su almacén: recepción, despacho, conteo ciego, cuarentena y envases |
+| `LOG-01` | R07 Coordinador de logística | Aprueba ajustes y traslados, atiende alertas, edita parámetros y umbrales (usuario por defecto) |
+| `GER-01` | R08 Gerencia | Consulta todo |
+| `TI-01` | R09 Administrador de sistemas | Administración: integridad, restablecer datos y fallas de integración |
 
-# 6. Iniciar el frontend (en otra terminal)
-npm run frontend:dev
-```
+## Mapa de pantallas
 
-Abre <http://localhost:5173>: se abre el **Tablero** como `LOG-01` (Coordinador de logística).
+| Pantalla | Ruta | Qué muestra |
+|----------|------|-------------|
+| Tablero | `/tablero` | KPIs, semáforo artículo × almacén, alertas que requieren acción, gráficos de stock y ventas |
+| Alertas | `/alertas` | Centro de alertas AL01–AL16: filtros, detalle con medidor, atención y umbrales |
+| Artículos | `/articulos` y `/articulos/ART-10021` | Listado y ficha: posición, parámetros con fórmulas, capas FIFO y kardex valorado |
+| Operaciones | `/operaciones` | Recepción, pedidos, traslados, conteo ciego, ajustes, cuarentena, envases y promociones, cada una con su efecto en capas, costos y alertas |
+| Aprobaciones | `/aprobaciones` | Bandeja de R07: ajustes, diferencias de recepción, promociones y cuarentena |
+| Análisis | `/analisis` | Pareto ABC, Pareto de ajustes, rotación y exactitud de conteos |
+| Fiestas | `/fiestas` | Calendario 2027, cronograma de preparación, ROP de fiesta y traslados extraordinarios |
+| Costos | `/costos` | Adquisición, conservación, pedido y agotamiento por artículo y mes |
+| Administración | `/administracion` | Reloj y escenarios, integridad, restablecer datos, fallas simuladas y bitácora |
 
-- **Barra superior:** almacén (Todos, LP, CB, SC), fecha simulada (−1 / +1 / +7 / +30 días, un día exacto o volver al 30/06/2027), campana de alertas rojas sin atender, tema claro u oscuro y selector de usuario.
-- **Al cambiar de usuario** cambian el menú, los permisos y los datos. Por ejemplo, `PV-014` (preventista) solo ve «Disponible / Agotado».
+En la barra superior están:
+- el filtro de almacén;
+- la fecha simulada (solo R07 y R09 la cambian);
+- la campana de alertas rojas;
+- el **Modo presentación**, que agranda la letra, sube el contraste y oculta lo secundario;
+- el tema claro u oscuro.
 
-La API con ejemplos está en <http://localhost:3000/api/docs>.
+Capturas: [docs/capturas](docs/capturas) y una por escena del guion en [docs/capturas/recorrido](docs/capturas/recorrido).
 
-Pantallas disponibles:
-- **Operaciones** (`/operaciones`): recepción, pedidos (reserva y despacho FIFO), traslados (propuestas y seguimiento), conteo ciego, ajustes, cuarentena, envases y promociones. Cada operación muestra las capas FIFO consumidas, su costo y qué alertas se crearon o resolvieron.
-- **Análisis** (`/analisis`): Pareto ABC, Pareto de ajustes, rotación y exactitud de conteos.
-- **Fiestas** (`/fiestas`): calendario 2027, cronograma de preparación, ROP y pronóstico de fiesta.
-- **Costos** (`/costos`): adquisición, conservación, pedido y agotamiento por artículo.
-- **Administración** (`/administracion`): reloj y escenarios de demo, restablecer datos (con `DEMO_MODE=true`), simular fallas, integridad, usuarios y bitácora.
-- **Aprobaciones** (`/aprobaciones`, R07): ajustes y mermas, diferencias de recepción, promociones propuestas y capas en cuarentena.
-- **Tablero:** KPIs y semáforo por artículo y almacén.
-- **Centro de alertas** (`/alertas`): filtros, detalle con medidor, atención y umbrales.
-- **Artículos** (`/articulos`) y **ficha del artículo** (`/articulos/ART-10021`): posición de stock, parámetros con fórmulas y edición con vista previa, capas FIFO y kardex.
+## Comandos
 
-Capturas en [docs/capturas](docs/capturas). Cómo está hecho el frontend: [docs/FRONTEND.md](docs/FRONTEND.md).
+Todos se ejecutan desde la carpeta raíz.
 
-## Puertos
+| Comando | Qué hace |
+|---------|----------|
+| `npm run demo:iniciar` / `demo:detener` | Levanta / apaga toda la demo |
+| `npm run verificar` | Lint, tests (unitarios, integración y componentes), compilación, humo con accesibilidad y recorrido completo |
+| `npm test` | Tests del backend (unitarios e integración en la base `inventario_test`) y del frontend |
+| `npm run test:humo` | Playwright: pantallas principales y axe-core en claro y oscuro |
+| `npm run test:recorrido` | Playwright: las 10 escenas del guion con los números exactos (≈ 30 s) |
+| `npm run capturas` | Regenera `docs/capturas` y `docs/capturas/recorrido` |
+| `npm run db:up` / `db:down` | Inicia / detiene PostgreSQL |
+| `npm run db:seed` | Vuelve al escenario del 30/06/2027 (determinista) |
+| `npm run db:verificar` | Comprueba la integridad de capas y movimientos |
+| `npm run db:migrate` | Crea una migración nueva en desarrollo |
+| `npm run backend:dev` / `frontend:dev` | Modo desarrollo con recarga automática (backend :3000, frontend :5173) |
+| `npm run demo:api` / `demo:alertas` | Ensayos de la demo por HTTP (con el backend en marcha) |
 
-| Servicio   | URL                                  |
-|------------|--------------------------------------|
-| Frontend   | http://localhost:5173                |
-| Backend    | http://localhost:3000/api            |
-| Salud      | http://localhost:3000/api/salud      |
-| PostgreSQL | localhost:5432                       |
-
-## Comandos útiles
-
-| Comando                | Qué hace                                         |
-|------------------------|--------------------------------------------------|
-| `npm run db:up`        | Inicia PostgreSQL en Docker                      |
-| `npm run db:down`      | Detiene PostgreSQL (los datos se conservan)      |
-| `npm run db:migrate`   | Aplica las migraciones de Prisma                 |
-| `npm run db:seed`      | Vacía las tablas y carga el escenario de demo    |
-| `npm run db:reset`     | Borra la base, migra, siembra y verifica         |
-| `npm run db:verificar` | Comprueba la integridad (capas vs. movimientos)  |
-| `npm test`             | Tests del backend (unitarios e integración, base `inventario_test`) y del frontend |
-| `npm run test:humo`    | Prueba de humo del navegador con Playwright (no modifica las capturas) |
-| `npm run capturas`     | Regenera las capturas de docs/capturas |
-| `npm run demo:api`     | Ensayo de la demo por HTTP (con el backend en marcha) |
-| `npm run demo:alertas` | Ensayo de la demo de alertas (con el backend en marcha) |
-| `npm run backend:dev`  | Backend NestJS con recarga automática            |
-| `npm run frontend:dev` | Frontend Vite con recarga automática             |
-
-Para borrar también los datos de la base: `docker compose down -v`.
-
-## Resetear los datos de la demo
-
-Si durante una prueba se ensuciaron los datos, vuelve al escenario inicial del 30/06/2027 con:
-
-```bash
-npm run db:seed     # rápido: vacía las tablas y vuelve a sembrar
-npm run db:reset    # completo: borra la base, aplica migraciones, siembra y verifica
-```
-
-El seed es determinista: siempre produce exactamente los mismos datos. El escenario está documentado en [docs/MODELO_DATOS.md](docs/MODELO_DATOS.md).
-
-## API
-
-La documentación interactiva (Swagger, con ejemplos) está en <http://localhost:3000/api/docs>.
-
-Cada petición lleva el encabezado `X-Usuario` con el código del usuario. En Swagger se pone con el botón **Authorize**. Por ejemplo:
-
-```bash
-curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/stock?almacenId=CD-LP-01'
-curl -X POST -H 'X-Usuario: PV-014' -H 'Content-Type: application/json' \
-  -d '{"cliente":"Cliente 001","almacen":"CD-LP-01","lineas":[{"articulo":"ART-10021","cantidad":100}]}' \
-  http://localhost:3000/api/pedidos
-```
-
-Qué puede hacer cada rol: [docs/PERMISOS.md](docs/PERMISOS.md). Los errores siempre tienen la forma `{ codigo, mensaje, detalles }`.
-
-## Ensayar la demo
-
-Con el backend en marcha (`npm run backend:dev`), en otra terminal:
-
-```bash
-npm run demo:api
-```
-
-Vuelve a sembrar el escenario y recorre por la API pedido → despacho → traslado → recepción con diferencia → conteo → ajuste → aprobación → cuarentena. Muestra el resultado de cada paso y las alertas que deberían aparecer. Con `npm run demo:api -- --sin-sembrar` no vuelve a sembrar.
-
-## Alertas
-
-El backend evalúa 16 alertas tipo semáforo (AL01–AL16) con la fecha simulada:
-- después de cada operación;
-- al cambiar la fecha;
-- al arrancar.
-
-El estado base del 30/06/2027 tiene 19 alertas vigentes. Para verlas:
+API con ejemplos (Swagger): <http://localhost:3000/api/docs>. Cada petición lleva el encabezado `X-Usuario`:
 
 ```bash
 curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/alertas/resumen'
-curl -H 'X-Usuario: LOG-01' 'http://localhost:3000/api/semaforo?almacenId=CD-LP-01'
 ```
 
-`npm run demo:alertas` recorre la historia completa:
-1. estado base;
-2. un despacho que dispara una alerta;
-3. una recepción que la resuelve;
-4. avanzar la fecha y ver los vencimientos;
-5. escalamiento;
-6. falla de integración y su reproceso.
+### Instalación manual (modo desarrollo)
 
-Umbrales, roles y reglas: [docs/ALERTAS.md](docs/ALERTAS.md).
+```bash
+cp .env.example .env
+npm run db:up
+npm run install:all
+(cd backend && npx prisma migrate deploy)
+npm run db:seed
+npm run backend:dev     # en una terminal
+npm run frontend:dev    # en otra terminal
+```
 
-## Tests
+## Solución de problemas
 
-`npm test` corre los tests unitarios de las fórmulas y los de integración. Los de integración usan una segunda base, `inventario_test`, en el mismo contenedor de PostgreSQL. Se crea y migra sola, y se vuelve a sembrar antes de cada archivo. No toca los datos de la demo.
+| Síntoma | Solución |
+|---------|----------|
+| «Docker está instalado pero no está abierto» | Abre Docker Desktop, espera la ballena quieta y repite `npm run demo:iniciar`. |
+| «Ya hay algo respondiendo en http://localhost:3000» (o 5173) | Hay un `backend:dev` o `frontend:dev` abierto: presiona Ctrl + C en esa terminal, o ejecuta `npm run demo:detener`. |
+| «El backend de una demo anterior sigue encendido» | `npm run demo:detener` y luego `npm run demo:iniciar`. |
+| Puerto 5432 ocupado | Otro PostgreSQL local está usando el puerto: detenlo, o cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en `.env`. |
+| Los números no coinciden con el guion | Administración → «Restablecer datos» (TI-01 o LOG-01), o `npm run db:seed`. |
+| «Cannot find module … generated/prisma» | `npm --prefix backend install` (genera el cliente de Prisma). |
+| La página dice «Restableciendo los datos…» | Es normal durante un restablecimiento: reintenta sola en unos segundos. |
+| Algo más | Revisa `.demo/backend.log` y `.demo/frontend.log`. |
 
-## Problemas comunes
+Para borrar también los datos de PostgreSQL: `docker compose down -v` (después, `npm run demo:iniciar` los vuelve a crear).
 
-- **"Base de datos: sin conexión"**: Docker Desktop no está abierto o falta `npm run db:up`.
-- **Puerto 5432 ocupado**: tienes otro PostgreSQL local; detenlo o cambia `POSTGRES_PORT` y el puerto en `DATABASE_URL` dentro de `.env`.
-- **Error "Cannot find module ... generated/prisma"**: ejecuta `npm --prefix backend install` (genera el cliente de Prisma).
+## Estructura
+
+```
+backend/              NestJS + Prisma (API en /api)
+  prisma/             esquema, migraciones, seed y verificación de integridad
+  src/inventario/     motor FIFO, fórmulas, operaciones e integridad
+  src/alertas/        evaluadores AL01–AL16 y ciclo de vida
+  src/analisis/       tablero, costos, fiestas, ABC y rotación
+  src/demo/           seed reutilizable y restablecimiento de la demo
+  test/               tests de integración (base inventario_test)
+frontend/             React + Vite + Tailwind
+  src/paginas/        una carpeta por pantalla
+  e2e/                Playwright: humo, accesibilidad, recorrido y capturas
+scripts/demo.mjs      demo:iniciar y demo:detener
+docs/                 especificación, modelo de datos, permisos, alertas, frontend, guion y trazabilidad
+```
+
+Más detalle: [docs/MODELO_DATOS.md](docs/MODELO_DATOS.md), [docs/ALERTAS.md](docs/ALERTAS.md) y [docs/FRONTEND.md](docs/FRONTEND.md).

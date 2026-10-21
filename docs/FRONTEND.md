@@ -47,6 +47,8 @@ src/
 e2e/
   comun.ts           sembrar(), abrir(página, ruta, usuario, tema), irA(), vigilancia de errores de consola
   humo.spec.ts       tablero, fecha simulada, cambio a PV-014
+  accesibilidad.spec.ts  axe-core (WCAG 2.1 AA) en 9 pantallas, claro y oscuro: cero violaciones serias o críticas
+  recorrido.spec.ts  @recorrido: las 10 escenas de docs/GUION_DEMO.md con números exactos (npm run test:recorrido)
   alertas-articulos.spec.ts  Centro de alertas y ficha del artículo
   capturas.spec.ts   @capturas: solo con `npm run capturas`
 ```
@@ -60,10 +62,13 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 | `texto`, `suave` | Texto principal y secundario |
 | `marca`, `marca-2`, `marca-texto` | Azul marino de marca: barra lateral, botones primarios, selector activo |
 | `acento`, `acento-suave` | Enlaces, fecha simulada, barras de ventas |
+| `sobre-color` | Texto sobre un fondo de color sólido (`bg-acento`, `bg-rojo`): blanco en claro, oscuro en oscuro; nunca `text-white` |
 | `verde`/`amarillo`/`rojo`/`azul` (+ `-fondo`) | Semáforo; en gráficos se usan como `var(--rojo)`, etc. |
 | `shadow-tarjeta` | Sombra suave de las tarjetas |
 
 - **Semáforo accesible** (`componentes/Semaforo.tsx`): ícono + texto (Normal, Atención, Crítico, Informativo), nunca solo color. En modo compacto el texto queda en `sr-only` y en el `title`.
+- **Modo presentación** (botón de la barra superior, `cbn.presentacion` en localStorage): `data-presentacion` en `<html>` sube la letra base a 113%, oscurece `texto-suave` y `borde` (aclara en oscuro) y oculta todo lo que tenga la clase `secundario` (subtítulos descriptivos, pie de la barra lateral).
+- **Contraste:** los tokens cumplen WCAG AA (4.5:1) en ambos temas; lo comprueba `accesibilidad.spec.ts`.
 - **Tipografía:** Inter, con cifras tabulares en la clase `.num` (KPIs y tablas).
 - **Animaciones:** `.entrar` (entrada de tarjetas; se repite al cambiar de almacén porque cambia la `key`) y `.pulso-rojo` (alertas rojas sin atender). Con `prefers-reduced-motion` se apagan.
 - **Diseño adaptable:**
@@ -76,6 +81,8 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 - **Almacenes:** siempre de `useAlmacenes()` (GET /api/almacenes, solo plantas: código, nombre corto y largo, sigla) y `useNombreAlmacen()`; nunca códigos fijos.
 - **Datos:** siempre con un hook de `api/consultas.ts`. La `queryKey` empieza por el recurso y lleva el usuario (`['tablero', usuario, almacen]`), así al cambiar de usuario todo se vuelve a pedir con sus permisos.
 - **Mutaciones:** `useMutation` con `api(...)`. El `MutationCache` muestra el error y, si sale bien, invalida todas las consultas (cualquier operación cambia stock y alertas). El cambio de fecha muestra cuántas alertas cambiaron (dato que devuelve el backend).
+- **Carga diferida:** cada pantalla se importa con `React.lazy` en `App.tsx` (recharts va en su propio paquete). Paquete inicial: 406 kB (antes 1,069 kB).
+- **Restablecimiento:** si la API responde 503 `DEMO_RESTABLECIENDO`, `api()` muestra «Restableciendo los datos…» y reintenta cada 1.5 s, en cualquier pestaña.
 - **Errores:** los muestra `QueryCache.onError` con un aviso en español; dentro de la pantalla, `EstadoError` con «Reintentar».
 - **Estados:** `Esqueleto` mientras carga, `EstadoVacio` sin datos, `EstadoError` si falla.
 - **Formato:** solo con `utils/formato.ts`, nunca con `toLocaleString` suelto.
@@ -85,8 +92,9 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
 ## Cómo agregar una pantalla
 1. Crea `src/paginas/<seccion>/<Seccion>.tsx` usando `Tarjeta`, `Semaforo`, `Kpi` y los estados.
 2. Agrega sus hooks en `api/consultas.ts` y sus tipos en `api/tipos.ts`.
-3. En `App.tsx`, renderiza tu componente en lugar de `<Proximamente>` para esa ruta. La sección ya existe en `sesion/permisos.ts`; ajusta sus `roles` si hace falta y actualiza docs/PERMISOS.md.
-4. Agrega una prueba de componente (`*.test.tsx`) si tiene lógica de presentación, y un paso en `e2e/humo.spec.ts` si es clave para la demo.
+3. La ruta muestra `<Proximamente>` hasta que la agregues en `App.tsx`. La sección ya existe en `sesion/permisos.ts`; ajusta sus `roles` si hace falta y actualiza docs/PERMISOS.md.
+4. Importa la pantalla con `lazy()` en el mapa `PANTALLAS` de `App.tsx`.
+5. Agrega una prueba de componente (`*.test.tsx`) si tiene lógica de presentación, un paso en `e2e/humo.spec.ts` si es clave para la demo, y la ruta en `e2e/accesibilidad.spec.ts`.
 
 ## Componentes visuales clave
 - **`Medidor`:** valor medido frente a los umbrales amarillo y rojo de una alerta, con tramos de color y una marca. Usa la misma regla que el backend (≤ cuando menor es peor, > en el resto). El dato `medicion` lo calcula el backend.
@@ -120,4 +128,6 @@ Están definidos como variables CSS en `:root` (tema claro) y `[data-theme='oscu
   - Levanta backend y frontend si no están corriendo; cada archivo vuelve a sembrar la base.
   - Comprueba el tablero, el Centro de alertas, la ficha, los permisos y que no haya errores en la consola.
   - **No** toca `docs/capturas/`.
-- `npm run capturas`: regenera las capturas de `docs/capturas/` (tablero, alertas con el panel abierto y la ficha del ART-10021 por secciones, en claro y oscuro). Ejecútalo solo cuando quieras actualizar las imágenes versionadas.
+- `npm run test:recorrido`: el guion completo en una prueba (≈ 30 s); siembra al inicio y termina con «Restablecer datos». Falla ante errores de consola o respuestas 5xx.
+- `npm run capturas`: regenera las capturas de `docs/capturas/` (tablero, alertas con el panel abierto y la ficha del ART-10021 por secciones, en claro y oscuro) y una por escena en `docs/capturas/recorrido/` (`CAPTURAS=1`). Ejecútalo solo cuando quieras actualizar las imágenes versionadas.
+- `npm run verificar` (raíz): lint, todos los tests, compilación, humo y recorrido.
