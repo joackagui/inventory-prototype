@@ -14,3 +14,4 @@ pgdata/
 *.tsbuildinfo
 test-results/
 playwright-report/
+.demo/

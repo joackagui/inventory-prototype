@@ -16,6 +16,8 @@
     "demo:api": "npm --prefix backend run demo:api",
     "demo:alertas": "npm --prefix backend run demo:alertas",
     "test:humo": "npm --prefix frontend run test:humo",
-    "capturas": "npm --prefix frontend run capturas"
+    "capturas": "npm --prefix frontend run capturas",
+    "demo:iniciar": "node scripts/demo.mjs iniciar",
+    "demo:detener": "node scripts/demo.mjs detener"
   }
 }
