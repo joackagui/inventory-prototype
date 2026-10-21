@@ -110,7 +110,7 @@ Ver `backend/src/inventario/motor.ts` y `docs/PERMISOS.md`.
 
 ## Escenario del seed (30/06/2027)
 
-El seed simula 90 días hábiles (lunes a viernes, del 24/02 al 29/06/2027):
+El seed simula 90 días de despacho (lunes a sábado sin feriados nacionales, del 12/03 al 29/06/2027; junio tiene 24, como el documento). El calendario está en `backend/src/comun/calendario.ts` y lo usan también las ventas del tablero y la rotación:
 - ventas diarias con distribución normal (media d, desviación σd), generadas con semilla fija;
 - entradas periódicas cada 5 días hábiles (clases A/B) o 10 (clase C);
 - un simulador FIFO que consume capa por capa.

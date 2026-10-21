@@ -194,7 +194,7 @@ export function Costos() {
         )}
         <p className="mt-4 flex items-start gap-2 rounded-lg bg-acento-suave p-3 text-sm" data-testid="nota-documento">
           <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-acento" />
-          El ejemplo del documento (ART-10021 en junio: 7,920 cajas × 12.40 = USD 98,208) suma los tres almacenes. Con «Todos» y junio de 2027 esta pantalla muestra {a21 && almacen === 'TODOS' ? `${numero(a21.unidadesVendidas)} cajas y ${dinero(a21.adquisicion)}` : 'el valor comparable'}: el prototipo simula días hábiles (lunes a viernes) y un historial propio, así que se acerca pero no coincide.
+          El ejemplo del documento (ART-10021 en junio: 7,920 cajas × 12.40 = USD 98,208) suma los tres almacenes. Con «Todos» y junio de 2027 esta pantalla muestra {a21 && almacen === 'TODOS' ? `${numero(a21.unidadesVendidas)} cajas y ${dinero(a21.adquisicion)}` : 'el valor comparable'}: el prototipo simula los mismos 24 días de despacho (lunes a sábado, sin feriados), pero con demanda variable y costos FIFO de varias capas, así que se acerca sin coincidir al centavo.
         </p>
       </Tarjeta>
       {editando && <DialogoTasas almacen={almacen} mes={mesActual} actuales={t} onCerrar={() => setEditando(false)} />}

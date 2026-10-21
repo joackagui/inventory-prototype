@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ErrorNegocio } from '../comun/errores.js';
 import { combinarUmbrales } from '../alertas/evaluadores.js';
 import { cronogramaFiesta } from './cronograma.js';
+import { esDiaDespacho } from '../comun/calendario.js';
 import { costoConservacion, pronosticoFiesta, qFiesta, ropFiesta, TIPOS_FISICOS, vidaRestanteDias } from '../inventario/calculos/formulas.js';
 import { obtenerStock, resolverAlmacen } from '../inventario/stock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -95,9 +96,9 @@ export class AnalisisService {
     const desde90 = masDias(fecha, -90);
     const conteos = await this.prisma.conteoFisico.findMany({ where: { almacenId: { in: ids }, fechaOperacion: { gt: desde90, lte: fecha } } });
 
-    // Últimos 30 días hábiles (lunes a viernes) cerrados: hasta el día anterior a la fecha simulada (hoy aún no termina).
+    // Últimos 30 días de despacho (lunes a sábado, sin feriados) cerrados: hasta el día anterior a la fecha simulada (hoy aún no termina).
     const habiles: Date[] = [];
-    for (let f = masDias(fecha, -1); habiles.length < 30; f = masDias(f, -1)) if (f.getUTCDay() % 6 !== 0) habiles.unshift(f);
+    for (let f = masDias(fecha, -1); habiles.length < 30; f = masDias(f, -1)) if (esDiaDespacho(f)) habiles.unshift(f);
     const ventas = await this.prisma.movimiento.findMany({
       where: { tipo: 'SALIDA', almacenId: { in: ids }, fechaOperacion: { gte: habiles[0], lt: fecha } },
       select: { fechaOperacion: true, cantidad: true, articulo: { select: { precio: true } } },
@@ -286,14 +287,14 @@ export class AnalisisService {
     };
   }
 
-  // Rotación de los últimos 90 días hábiles cerrados: costo de lo vendido × (252 ÷ 90) ÷ valor del stock promedio.
+  // Rotación de los últimos 90 días de despacho cerrados: costo de lo vendido × (252 ÷ 90) ÷ valor del stock promedio.
   async rotacion(almacenParam?: string) {
     const plantas = await this.plantas(almacenParam);
     const ids = plantas.map((p) => p.id);
     const fecha = await this.simulacion.fechaOperacion();
     const diasMinimos = await this.simulacion.diasMinimosDespacho();
     const habiles: Date[] = [];
-    for (let f = masDias(fecha, -1); habiles.length < 90; f = masDias(f, -1)) if (f.getUTCDay() % 6 !== 0) habiles.unshift(f);
+    for (let f = masDias(fecha, -1); habiles.length < 90; f = masDias(f, -1)) if (esDiaDespacho(f)) habiles.unshift(f);
     const inicio = habiles[0];
     const diasCalendario = Math.round((fecha.getTime() - inicio.getTime()) / MS_DIA);
     const movs = await this.prisma.movimiento.findMany({

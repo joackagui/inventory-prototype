@@ -5,6 +5,7 @@ import { PrismaClient, type TipoMovimiento } from '../generated/prisma/client.js
 import { calcularParametros, clasificarAbc, type ClaseAbc, type ParametrosCalculados } from '../inventario/calculos/formulas.js';
 import { evaluarAlertas } from '../alertas/evaluacion.js';
 import { obtenerStock } from '../inventario/stock.js';
+import { esDiaDespacho } from '../comun/calendario.js';
 
 // ---------- Utilidades deterministas ----------
 const SEMILLA = 20270630;
@@ -23,10 +24,10 @@ const yymmdd = (f: Date) => f.toISOString().slice(2, 10).replaceAll('-', '');
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 const FECHA_OPERACION = F('2027-06-30');
-// 90 días hábiles (lunes a viernes) hasta el día anterior a la fecha de operación.
+// 90 días de despacho (lunes a sábado, sin feriados) hasta el día anterior a la fecha de operación.
 const DIAS: Date[] = [];
 for (let f = masDias(FECHA_OPERACION, -1); DIAS.length < 90; f = masDias(f, -1)) {
-  if (f.getUTCDay() % 6 !== 0) DIAS.unshift(f);
+  if (esDiaDespacho(f)) DIAS.unshift(f);
 }
 const N = DIAS.length;
 const indiceDia = (s: string) => DIAS.findIndex((d) => d.getTime() === F(s).getTime());

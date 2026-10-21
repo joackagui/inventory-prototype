@@ -21,7 +21,7 @@ describe('Análisis, fiestas, costos y herramientas de demo', () => {
 
   it('rotación anualizada, días de inventario y cobertura; conteos y exactitud', async () => {
     const r = (await como('GER-01').get('/analisis/rotacion?almacenId=CD-LP-01')).body;
-    expect(r).toMatchObject({ almacen: 'CD-LP-01', desde: '2027-02-24', hasta: '2027-06-29', umbrales: { alta: 30, media: 15 } });
+    expect(r).toMatchObject({ almacen: 'CD-LP-01', desde: '2027-03-12', hasta: '2027-06-29', umbrales: { alta: 30, media: 15 } });
     const a = r.articulos.find((x: { codigo: string }) => x.codigo === 'ART-10021');
     expect(a.rotacionAnual).toBe(Math.round(((a.costoVendido90 * 252) / 90 / a.valorStockPromedio) * 100) / 100);
     expect(a.diasInventario).toBe(Math.round((a.valorStockPromedio / (a.costoVendido90 / 90)) * 10) / 10);
