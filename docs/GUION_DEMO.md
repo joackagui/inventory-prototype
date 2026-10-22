@@ -2,6 +2,8 @@
 
 Prototipo del sistema de inventarios del ERP de CBN. Todos los números de este guion salen del escenario sembrado al 30/06/2027 y los comprueba `npm run test:recorrido`. Las referencias «§» apuntan al documento **«Sistema de Inventarios del ERP CBN»** (fase conceptual).
 
+Para entender a fondo cada escena y preparar las preguntas, ver la [guía de aprendizaje](guia/README.md) (en especial el [capítulo 09](guia/09-defensa.md)).
+
 ## Checklist previa (15 minutos antes)
 
 - [ ] Docker Desktop abierto (ballena quieta en la barra de menú).

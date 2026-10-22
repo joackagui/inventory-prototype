@@ -5,6 +5,7 @@ Prototipo funcional del sistema de inventarios del ERP de CBN (canal de preventa
 - Especificación: [docs/ESPECIFICACION.md](docs/ESPECIFICACION.md)
 - Guion de la demo: [docs/GUION_DEMO.md](docs/GUION_DEMO.md)
 - Trazabilidad de requisitos: [docs/TRAZABILIDAD.md](docs/TRAZABILIDAD.md)
+- Guía de aprendizaje (entender y defender el sistema): [docs/guia/](docs/guia/README.md)
 
 ## Requisitos
 
